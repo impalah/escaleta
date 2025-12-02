@@ -94,7 +94,7 @@ function formatDate(isoString: string): string {
   })
 }
 
-function handleRowClick(event: Event, row: { item: Beat }) {
+function handleRowClick(_event: Event, row: { item: Beat }) {
   emit('beat-click', row.item)
 }
 </script>

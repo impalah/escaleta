@@ -10,9 +10,17 @@ export interface Beat {
   typeId: string
   order: number
   position: { x: number; y: number }
-  links: string[] // IDs of related beats
+  links: string[] // IDs of related beats (deprecated)
+  prevBeatId?: string // Beat anterior en la cadena
+  nextBeatId?: string // Beat siguiente en la cadena
   createdAt: string
   updatedAt: string
+}
+
+// Zona de imán activa durante drag
+export interface MagnetZone {
+  beatId: string
+  zone: 'top' | 'bottom'
 }
 
 export interface BeatType {

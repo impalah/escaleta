@@ -5,6 +5,7 @@ Visual rundown editor for TV show and news production.
 ## 🚀 Features
 
 - **Visual beat editor** with canvas-style positionable cards
+- **Beat connections** - Smart magnet zones for linking beats in sequence with visual feedback
 - **Grid view** - Switch between canvas and table/grid views for different workflows
 - **Beat ordering** - Organize beats with numerical order for rundown sequencing
 - **Predefined beat types** (Opening, News, VTR, Interview, Sports, Closing)
@@ -101,10 +102,10 @@ Each beat has an `order` field (numeric) that determines its sequence in the run
 
 ## 🎯 Roadmap / TODO
 
-- [ ] Implement drag & drop to move beats on canvas
+- [x] Implement drag & drop to move beats on canvas
 - [x] Grid/table view (traditional rundown mode)
 - [x] Beat ordering system
-- [ ] Beat connection system (visual links)
+- [x] Beat connection system (magnet zones with visual feedback)
 - [ ] Export to JSON and script format
 - [ ] Import from external formats
 - [ ] Side panel with filters by type/character

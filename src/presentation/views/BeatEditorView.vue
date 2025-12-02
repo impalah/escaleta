@@ -92,12 +92,17 @@
           transformOrigin: 'top left' 
         }"
       >
+        <!-- Beat Cards -->
         <BeatCard
           v-for="beat in project.beats"
           :key="beat.id"
           :beat="beat"
           :beat-type="getBeatType(beat.typeId)"
+          :magnet-zone="magnetZones.get(beat.id) || null"
           @click="openEditDialog(beat)"
+          @dragstart="handleBeatDragStart"
+          @dragmove="handleBeatDragMove"
+          @dragend="handleBeatDragEnd"
         />
       </div>
     </v-sheet>
@@ -138,7 +143,12 @@ import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog
 import BeatGridView from '@/presentation/components/BeatGridView.vue'
 
 const project = ref<Project>(projectService.loadCurrentProject())
-const zoom = ref(1)
+
+// Zoom state with persistence
+const ZOOM_KEY = 'escaleta-canvas-zoom'
+const savedZoom = localStorage.getItem(ZOOM_KEY)
+const zoom = ref(savedZoom ? parseFloat(savedZoom) : 1)
+
 const showEditDialog = ref(false)
 const showNewBeatDialog = ref(false)
 const selectedBeat = ref<Beat | null>(null)
@@ -151,6 +161,18 @@ const savedPanOffset = localStorage.getItem(PAN_OFFSET_KEY)
 const panOffset = ref(savedPanOffset ? JSON.parse(savedPanOffset) : { x: 0, y: 0 })
 const panStart = ref({ x: 0, y: 0 })
 const lastPanOffset = ref({ x: 0, y: 0 })
+
+// Beat drag state
+const isDraggingBeat = ref(false)
+const draggingBeatId = ref<string | null>(null)
+const beatDragStartPosition = ref({ x: 0, y: 0 })
+
+// Magnet zones state
+const magnetZones = ref<Map<string, 'top' | 'bottom'>>(new Map())
+
+// Constants for magnet zone detection
+const BEAT_HEIGHT = 80 // Must match constant in ProjectService
+const MAGNET_OVERLAP_THRESHOLD = 0.5 // 50% overlap required
 
 // View mode: 'canvas' or 'grid', persisted in localStorage
 const VIEW_MODE_KEY = 'escaleta-view-mode'
@@ -172,6 +194,11 @@ watch(viewMode, (newMode) => {
 watch(panOffset, (newOffset) => {
   localStorage.setItem(PAN_OFFSET_KEY, JSON.stringify(newOffset))
 }, { deep: true })
+
+// Watch zoom and persist changes
+watch(zoom, (newZoom) => {
+  localStorage.setItem(ZOOM_KEY, newZoom.toString())
+})
 
 onMounted(() => {
   // Project is already loaded in ref initialization
@@ -240,7 +267,9 @@ function handleZoomOut() {
 
 // Canvas panning handlers
 function handleCanvasMouseDown(event: MouseEvent) {
-  // Only start panning if clicking on the canvas background (not on a beat card)
+  // Don't pan if dragging a beat or clicking on a beat card
+  if (isDraggingBeat.value) return
+  
   const target = event.target as HTMLElement
   if (target.closest('[data-testid="beat-card"]')) {
     return // Clicked on a beat card, don't pan
@@ -265,6 +294,111 @@ function handleCanvasMouseMove(event: MouseEvent) {
 
 function handleCanvasMouseUp() {
   isPanning.value = false
+}
+
+// Beat drag handlers
+function handleBeatDragStart(beatId: string) {
+  isDraggingBeat.value = true
+  draggingBeatId.value = beatId
+  
+  const beat = project.value.beats.find(b => b.id === beatId)
+  if (beat) {
+    beatDragStartPosition.value = { ...beat.position }
+  }
+}
+
+function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
+  if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
+  
+  // Calculate new position accounting for zoom
+  const newX = beatDragStartPosition.value.x + (deltaX / zoom.value)
+  const newY = beatDragStartPosition.value.y + (deltaY / zoom.value)
+  
+  // Update beat position in project (allow negative coordinates)
+  const beatIndex = project.value.beats.findIndex(b => b.id === beatId)
+  if (beatIndex !== -1) {
+    project.value.beats[beatIndex] = {
+      ...project.value.beats[beatIndex],
+      position: { x: newX, y: newY },
+      updatedAt: new Date().toISOString()
+    }
+  }
+  
+  // Detect magnet zone overlaps with other beats
+  detectMagnetZones(beatId, newX, newY)
+}
+
+function detectMagnetZones(draggingBeatId: string, beatX: number, beatY: number) {
+  const newMagnetZones = new Map<string, 'top' | 'bottom'>()
+  const BEAT_WIDTH = 200 // BeatCard width
+  
+  // Check overlap with each beat (except the dragging beat itself)
+  for (const targetBeat of project.value.beats) {
+    if (targetBeat.id === draggingBeatId) continue
+    
+    // Calculate bounding boxes
+    const draggedLeft = beatX
+    const draggedRight = beatX + BEAT_WIDTH
+    const draggedTop = beatY
+    const draggedBottom = beatY + BEAT_HEIGHT
+    const draggedMidY = beatY + BEAT_HEIGHT / 2
+    
+    const targetLeft = targetBeat.position.x
+    const targetRight = targetBeat.position.x + BEAT_WIDTH
+    const targetTop = targetBeat.position.y
+    const targetBottom = targetBeat.position.y + BEAT_HEIGHT
+    const targetMidY = targetBeat.position.y + BEAT_HEIGHT / 2
+    
+    // Check horizontal overlap
+    const hasHorizontalOverlap = draggedRight > targetLeft && draggedLeft < targetRight
+    if (!hasHorizontalOverlap) continue
+    
+    // Calculate vertical overlap
+    const overlapTop = Math.max(draggedTop, targetTop)
+    const overlapBottom = Math.min(draggedBottom, targetBottom)
+    const overlapHeight = Math.max(0, overlapBottom - overlapTop)
+    const overlapRatio = overlapHeight / BEAT_HEIGHT
+    
+    // Check if overlap exceeds threshold
+    if (overlapRatio < MAGNET_OVERLAP_THRESHOLD) continue
+    
+    // Determine which zone: top if dragged beat's center is above target's center
+    if (draggedMidY < targetMidY) {
+      newMagnetZones.set(targetBeat.id, 'top')
+    } else {
+      newMagnetZones.set(targetBeat.id, 'bottom')
+    }
+  }
+  
+  magnetZones.value = newMagnetZones
+}
+
+function handleBeatDragEnd(beatId: string) {
+  if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
+  
+  // Check if dragged beat landed on a magnet zone
+  let connectionMade = false
+  for (const [targetBeatId, zone] of magnetZones.value.entries()) {
+    if (zone === 'top') {
+      project.value = projectService.connectToTop(project.value, beatId, targetBeatId)
+      connectionMade = true
+    } else if (zone === 'bottom') {
+      project.value = projectService.connectToBottom(project.value, beatId, targetBeatId)
+      connectionMade = true
+    }
+    
+    // Only connect to first magnet zone found
+    break
+  }
+  
+  // Clear drag state
+  isDraggingBeat.value = false
+  draggingBeatId.value = null
+  magnetZones.value.clear()
+  
+  // Save project with updated position and connections
+  projectService.saveCurrentProject(project.value)
+  console.log(connectionMade ? 'Beat connected' : 'Beat position saved')
 }
 </script>
 

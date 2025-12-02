@@ -221,6 +221,254 @@ export class ProjectService {
     return [...project.beats].sort((a, b) => a.order - b.order)
   }
 
+  /**
+   * Connect two beats (doble enlace: prevBeatId y nextBeatId)
+   */
+  connectBeats(project: Project, prevBeatId: string, nextBeatId: string): Project {
+    return {
+      ...project,
+      beats: project.beats.map(beat => {
+        if (beat.id === prevBeatId) {
+          return { ...beat, nextBeatId, updatedAt: new Date().toISOString() }
+        }
+        if (beat.id === nextBeatId) {
+          return { ...beat, prevBeatId, updatedAt: new Date().toISOString() }
+        }
+        return beat
+      }),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Disconnect a beat from its neighbors
+   */
+  disconnectBeat(project: Project, beatId: string): Project {
+    const beat = project.beats.find(b => b.id === beatId)
+    if (!beat) return project
+
+    return {
+      ...project,
+      beats: project.beats.map(b => {
+        // Desconectar el beat actual
+        if (b.id === beatId) {
+          return { ...b, prevBeatId: undefined, nextBeatId: undefined, updatedAt: new Date().toISOString() }
+        }
+        // Desconectar beats vecinos
+        if (b.id === beat.prevBeatId) {
+          return { ...b, nextBeatId: undefined, updatedAt: new Date().toISOString() }
+        }
+        if (b.id === beat.nextBeatId) {
+          return { ...b, prevBeatId: undefined, updatedAt: new Date().toISOString() }
+        }
+        return b
+      }),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Get the actual height of a beat card element in pixels
+   * Falls back to constant if element not found
+   */
+  private getBeatHeight(beatId: string): number {
+    const beatElement = document.querySelector(`[data-beat-id="${beatId}"] .v-card`)
+    if (beatElement) {
+      return beatElement.getBoundingClientRect().height
+    }
+    return 80 // Fallback to default height
+  }
+
+  /**
+   * Insert a beat between two connected beats
+   * A → B becomes A → C → B
+   */
+  insertBetween(project: Project, insertBeatId: string, prevBeatId: string, nextBeatId: string): Project {
+    const GAP = 10 // Espacio entre beats conectados
+
+    const insertBeat = project.beats.find(b => b.id === insertBeatId)
+    const prevBeat = project.beats.find(b => b.id === prevBeatId)
+    const nextBeat = project.beats.find(b => b.id === nextBeatId)
+
+    if (!insertBeat || !prevBeat || !nextBeat) return project
+
+    // Obtener alturas reales de los beats
+    const prevBeatHeight = this.getBeatHeight(prevBeatId)
+    const insertBeatHeight = this.getBeatHeight(insertBeatId)
+
+    // Calcular nueva posición para el beat insertado (entre prev y next)
+    const newY = prevBeat.position.y + prevBeatHeight + GAP
+    const alignedX = prevBeat.position.x // Alinear horizontalmente con prevBeat
+
+    // Desplazar nextBeat y todos sus sucesores hacia abajo
+    const shiftAmount = insertBeatHeight + GAP
+
+    return {
+      ...project,
+      beats: project.beats.map(beat => {
+        // Actualizar beat insertado
+        if (beat.id === insertBeatId) {
+          return {
+            ...beat,
+            position: { x: alignedX, y: newY },
+            prevBeatId,
+            nextBeatId,
+            updatedAt: new Date().toISOString()
+          }
+        }
+        // Actualizar prevBeat (apunta al insertado)
+        if (beat.id === prevBeatId) {
+          return { ...beat, nextBeatId: insertBeatId, updatedAt: new Date().toISOString() }
+        }
+        // Actualizar nextBeat (apunta al insertado) y moverlo
+        if (beat.id === nextBeatId) {
+          return {
+            ...beat,
+            position: { x: beat.position.x, y: beat.position.y + shiftAmount },
+            prevBeatId: insertBeatId,
+            updatedAt: new Date().toISOString()
+          }
+        }
+        // Mover todos los beats que estén después de nextBeat en la cadena
+        if (this.isAfterBeat(project, beat.id, nextBeatId)) {
+          return {
+            ...beat,
+            position: { x: beat.position.x, y: beat.position.y + shiftAmount },
+            updatedAt: new Date().toISOString()
+          }
+        }
+        return beat
+      }),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Connect a beat to the top of another beat (beat becomes prevBeat of target)
+   * El beat destino NO se mueve, solo se mueve el beat arrastrado
+   */
+  connectToTop(project: Project, beatId: string, targetBeatId: string): Project {
+    const GAP = 10
+
+    const beat = project.beats.find(b => b.id === beatId)
+    const targetBeat = project.beats.find(b => b.id === targetBeatId)
+
+    if (!beat || !targetBeat) return project
+
+    // Desconectar beat actual de sus vecinos
+    let updatedProject = this.disconnectBeat(project, beatId)
+
+    // Obtener targetBeat actualizado del proyecto modificado
+    const updatedTargetBeat = updatedProject.beats.find(b => b.id === targetBeatId)
+    if (!updatedTargetBeat) return project
+
+    // Si targetBeat ya tiene prevBeat, insertar entre ellos
+    if (updatedTargetBeat.prevBeatId) {
+      return this.insertBetween(updatedProject, beatId, updatedTargetBeat.prevBeatId, targetBeatId)
+    }
+
+    // Posicionar beat encima de targetBeat (sin mover el target)
+    const beatHeight = this.getBeatHeight(beatId)
+    const alignedX = updatedTargetBeat.position.x
+    const newY = updatedTargetBeat.position.y - beatHeight - GAP
+
+    return {
+      ...updatedProject,
+      beats: updatedProject.beats.map(b => {
+        if (b.id === beatId) {
+          return {
+            ...b,
+            position: { x: alignedX, y: newY },
+            nextBeatId: targetBeatId,
+            updatedAt: new Date().toISOString()
+          }
+        }
+        if (b.id === targetBeatId) {
+          return { ...b, prevBeatId: beatId, updatedAt: new Date().toISOString() }
+        }
+        return b
+      }),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Connect a beat to the bottom of another beat (beat becomes nextBeat of target)
+   */
+  connectToBottom(project: Project, beatId: string, targetBeatId: string): Project {
+    const GAP = 10
+
+    const beat = project.beats.find(b => b.id === beatId)
+    const targetBeat = project.beats.find(b => b.id === targetBeatId)
+
+    if (!beat || !targetBeat) return project
+
+    // Desconectar beat actual de sus vecinos
+    let updatedProject = this.disconnectBeat(project, beatId)
+
+    // Obtener targetBeat actualizado del proyecto modificado
+    const updatedTargetBeat = updatedProject.beats.find(b => b.id === targetBeatId)
+    if (!updatedTargetBeat) return project
+
+    // Si targetBeat ya tiene nextBeat, insertar entre ellos
+    if (updatedTargetBeat.nextBeatId) {
+      return this.insertBetween(updatedProject, beatId, targetBeatId, updatedTargetBeat.nextBeatId)
+    }
+
+    // Posicionar beat debajo de targetBeat
+    const targetBeatHeight = this.getBeatHeight(targetBeatId)
+    const alignedX = updatedTargetBeat.position.x
+    const newY = updatedTargetBeat.position.y + targetBeatHeight + GAP
+
+    return {
+      ...updatedProject,
+      beats: updatedProject.beats.map(b => {
+        if (b.id === beatId) {
+          return {
+            ...b,
+            position: { x: alignedX, y: newY },
+            prevBeatId: targetBeatId,
+            updatedAt: new Date().toISOString()
+          }
+        }
+        if (b.id === targetBeatId) {
+          return { ...b, nextBeatId: beatId, updatedAt: new Date().toISOString() }
+        }
+        return b
+      }),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Check if a beat is after another beat in the chain
+   * Includes protection against infinite loops
+   */
+  private isAfterBeat(project: Project, beatId: string, afterBeatId: string): boolean {
+    let current = project.beats.find(b => b.id === afterBeatId)
+    const visited = new Set<string>()
+    
+    while (current?.nextBeatId) {
+      // Protección contra bucles infinitos
+      if (visited.has(current.id)) {
+        console.warn('Detected circular reference in beat chain')
+        return false
+      }
+      visited.add(current.id)
+      
+      if (current.nextBeatId === beatId) return true
+      current = project.beats.find(b => b.id === current!.nextBeatId)
+      
+      // Límite de seguridad: máximo 100 beats en cadena
+      if (visited.size > 100) {
+        console.warn('Beat chain too long, stopping traversal')
+        return false
+      }
+    }
+    
+    return false
+  }
+
   // TODO: Implement export to JSON
   // TODO: Implement export to script format
   // TODO: Implement import from external formats
