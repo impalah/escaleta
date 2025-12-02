@@ -164,12 +164,12 @@ function getContrastColor(hexColor: string | undefined): string {
 <style scoped>
 .beat-card-wrapper {
   position: absolute;
-  width: 200px;
+  width: 400px;
 }
 
 .beat-card {
   position: relative;
-  width: 200px;
+  width: 400px;
   cursor: grab;
   transition: transform 0.2s, box-shadow 0.2s;
   user-select: none;
