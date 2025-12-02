@@ -188,4 +188,91 @@ test.describe('Beat Editor', () => {
     expect(left).toBeTruthy()
     expect(top).toBeTruthy()
   })
+
+  test('should switch between canvas and grid views', async ({ page }) => {
+    await page.goto('/')
+
+    // Initially should be in canvas view
+    await expect(page.locator('.beat-canvas-container')).toBeVisible()
+    
+    // Click grid view button
+    await page.click('button[aria-label="Grid view"]')
+    
+    // Canvas should be hidden, grid should be visible
+    await expect(page.locator('.beat-canvas-container')).not.toBeVisible()
+    await expect(page.locator('.beat-grid-container')).toBeVisible()
+    
+    // Grid table should have beats
+    await expect(page.locator('.v-data-table tbody tr')).toHaveCount(7)
+    
+    // Switch back to canvas
+    await page.click('button[aria-label="Canvas view"]')
+    
+    // Canvas should be visible again
+    await expect(page.locator('.beat-canvas-container')).toBeVisible()
+    await expect(page.locator('.beat-grid-container')).not.toBeVisible()
+  })
+
+  test('should persist view mode preference', async ({ page }) => {
+    await page.goto('/')
+
+    // Switch to grid view
+    await page.click('button[aria-label="Grid view"]')
+    await expect(page.locator('.beat-grid-container')).toBeVisible()
+    
+    // Reload page
+    await page.reload()
+    
+    // Should still be in grid view
+    await expect(page.locator('.beat-grid-container')).toBeVisible()
+    await expect(page.locator('.beat-canvas-container')).not.toBeVisible()
+  })
+
+  test('should display beats sorted by order in grid view', async ({ page }) => {
+    await page.goto('/')
+
+    // Switch to grid view
+    await page.click('button[aria-label="Grid view"]')
+    
+    // Get all rows
+    const rows = page.locator('.v-data-table tbody tr')
+    await expect(rows).toHaveCount(7)
+    
+    // Check that first row has order 1 (Opening)
+    const firstRow = rows.nth(0)
+    await expect(firstRow).toContainText('Opening')
+    
+    // Check that last row has order 7 (Closing)
+    const lastRow = rows.nth(6)
+    await expect(lastRow).toContainText('Closing')
+  })
+
+  test('should be able to edit beat from grid view', async ({ page }) => {
+    await page.goto('/')
+
+    // Switch to grid view
+    await page.click('button[aria-label="Grid view"]')
+    
+    // Click on first row
+    const firstRow = page.locator('.v-data-table tbody tr').first()
+    await firstRow.click()
+    
+    // Edit dialog should appear
+    await page.waitForSelector('text=Editar Beat', { state: 'visible' })
+    
+    // Modify the order field
+    const orderInput = page.locator('input[type="number"]')
+    await orderInput.click()
+    await orderInput.fill('10')
+    
+    // Save changes
+    await page.click('button:has-text("Guardar")')
+    
+    await page.waitForTimeout(500)
+    
+    // Verify order was updated (beat should now appear last in grid)
+    const rows = page.locator('.v-data-table tbody tr')
+    const lastRow = rows.last()
+    await expect(lastRow).toContainText('Opening')
+  })
 })

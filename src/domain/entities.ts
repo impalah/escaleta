@@ -8,6 +8,7 @@ export interface Beat {
   title: string
   description: string
   typeId: string
+  order: number
   position: { x: number; y: number }
   links: string[] // IDs of related beats
   createdAt: string
@@ -33,6 +34,6 @@ export interface Project {
 
 export interface ProjectSettings {
   zoom: number
-  lastViewMode: 'canvas' | 'table'
+  lastViewMode: 'canvas' | 'grid'
   // TODO: Add more settings as needed (grid snap, auto-save, etc.)
 }

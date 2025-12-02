@@ -5,8 +5,11 @@ Visual rundown editor for TV show and news production.
 ## 🚀 Features
 
 - **Visual beat editor** with canvas-style positionable cards
+- **Grid view** - Switch between canvas and table/grid views for different workflows
+- **Beat ordering** - Organize beats with numerical order for rundown sequencing
 - **Predefined beat types** (Opening, News, VTR, Interview, Sports, Closing)
 - **Automatic persistence** in localStorage
+- **View mode persistence** - Your preferred view (canvas/grid) is remembered
 - **Example project** included to get started quickly
 - **Material Design interface** with Vuetify 3
 - **Clean Architecture** with layer separation (domain, application, infrastructure, presentation)
@@ -66,31 +69,49 @@ src/
 ├── infrastructure/      # Concrete implementations (LocalStorageService)
 ├── presentation/        # Vue components and views
 │   ├── views/          # Main views (BeatEditorView)
-│   └── components/     # Reusable components (BeatCard, dialogs)
+│   └── components/     # Reusable components (BeatCard, BeatGridView, dialogs)
 ├── plugins/            # Vuetify configuration
 └── utils/              # Utilities (uuid generator)
 ```
 
+## 📝 Basic Usage
+
+1. When opening the application, an example project loads automatically
+2. Click on any beat to edit it (title, type, description, **order**)
+3. Use the "+" button in the toolbar to add new beats
+4. **Toggle between canvas and grid views** using the view mode buttons in the toolbar
+5. **In grid view**, beats are displayed in a sortable table ordered by their sequence number
+6. **In canvas view**, beats are positioned freely on a 2D canvas
+7. Changes are automatically saved to localStorage
+8. Your preferred view mode (canvas/grid) is remembered between sessions
+9. Use zoom controls to adjust the canvas view
+
+### View Modes
+
+- **Canvas View** (default): Visual representation with draggable cards positioned on a 2D canvas
+- **Grid View**: Table format showing all beat details in columns, sorted by order number
+
+### Beat Order
+
+Each beat has an `order` field (numeric) that determines its sequence in the rundown:
+- Lower numbers appear first
+- When creating a new beat, it automatically gets the next available order number
+- You can edit the order in the beat edit dialog to rearrange the sequence
+- Grid view automatically sorts beats by this order field
+
 ## 🎯 Roadmap / TODO
 
 - [ ] Implement drag & drop to move beats on canvas
+- [x] Grid/table view (traditional rundown mode)
+- [x] Beat ordering system
 - [ ] Beat connection system (visual links)
 - [ ] Export to JSON and script format
 - [ ] Import from external formats
-- [ ] Table view (traditional rundown mode)
 - [ ] Side panel with filters by type/character
 - [ ] Cues and timing for each beat
 - [ ] Multiple projects support
 - [ ] Dark mode
 - [ ] Grid snap for beat alignment
-
-## 📝 Basic Usage
-
-1. When opening the application, an example project loads automatically
-2. Click on any beat to edit it (title, type, description)
-3. Use the "+" button in the toolbar to add new beats
-4. Changes are automatically saved to localStorage
-5. Use zoom controls to adjust the canvas view
 
 ## 🏗️ Architecture
 

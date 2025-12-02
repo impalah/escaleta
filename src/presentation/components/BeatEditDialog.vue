@@ -33,6 +33,17 @@
           variant="outlined"
           rows="4"
           density="comfortable"
+          class="mb-4"
+        />
+
+        <v-text-field
+          v-model.number="localBeat.order"
+          label="Orden"
+          type="number"
+          variant="outlined"
+          density="comfortable"
+          hint="Número de orden para la secuencia (menor = primero)"
+          persistent-hint
         />
       </v-card-text>
 
@@ -63,7 +74,8 @@ const emit = defineEmits<{
 const localBeat = ref<Partial<Beat>>({
   title: '',
   typeId: '',
-  description: ''
+  description: '',
+  order: 0
 })
 
 // Watch for beat changes to update local copy
@@ -74,7 +86,8 @@ watch(
       localBeat.value = {
         title: newBeat.title,
         typeId: newBeat.typeId,
-        description: newBeat.description
+        description: newBeat.description,
+        order: newBeat.order
       }
     }
   },

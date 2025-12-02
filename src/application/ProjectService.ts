@@ -60,6 +60,7 @@ export class ProjectService {
         title: 'Opening',
         description: 'News show introduction and welcome',
         typeId: 'opening',
+        order: 1,
         position: { x: 100, y: 100 },
         links: [],
         createdAt: now,
@@ -70,6 +71,7 @@ export class ProjectService {
         title: 'News 1: National Politics',
         description: 'Government announces new economic measures',
         typeId: 'news',
+        order: 2,
         position: { x: 350, y: 100 },
         links: [],
         createdAt: now,
@@ -80,6 +82,7 @@ export class ProjectService {
         title: 'VTR: Minister Interview',
         description: 'Economy minister statements',
         typeId: 'vtr',
+        order: 3,
         position: { x: 600, y: 100 },
         links: [],
         createdAt: now,
@@ -90,6 +93,7 @@ export class ProjectService {
         title: 'News 2: International',
         description: 'European summit on climate change',
         typeId: 'news',
+        order: 4,
         position: { x: 850, y: 100 },
         links: [],
         createdAt: now,
@@ -100,6 +104,7 @@ export class ProjectService {
         title: 'Sports',
         description: 'Sports day highlights',
         typeId: 'sports',
+        order: 5,
         position: { x: 100, y: 350 },
         links: [],
         createdAt: now,
@@ -110,6 +115,7 @@ export class ProjectService {
         title: 'Weather',
         description: 'Tomorrow\'s weather forecast',
         typeId: 'weather',
+        order: 6,
         position: { x: 350, y: 350 },
         links: [],
         createdAt: now,
@@ -120,6 +126,7 @@ export class ProjectService {
         title: 'Closing',
         description: 'Farewell and preview of next broadcast',
         typeId: 'closing',
+        order: 7,
         position: { x: 600, y: 350 },
         links: [],
         createdAt: now,
@@ -164,11 +171,16 @@ export class ProjectService {
     const maxX = project.beats.reduce((max, b) => Math.max(max, b.position.x), 0)
     const nextX = maxX > 0 ? maxX + 250 : 100
 
+    // Calculate next order number
+    const maxOrder = project.beats.reduce((max, b) => Math.max(max, b.order), 0)
+    const nextOrder = maxOrder + 1
+
     return {
       id: uuidv4(),
       title: `New ${beatType?.name || 'Beat'}`,
       description: '',
       typeId,
+      order: nextOrder,
       position: { x: nextX, y: 100 },
       links: [],
       createdAt: now,
@@ -200,6 +212,13 @@ export class ProjectService {
       beats: project.beats.filter(beat => beat.id !== beatId),
       updatedAt: new Date().toISOString()
     }
+  }
+
+  /**
+   * Get beats sorted by order field
+   */
+  getSortedBeats(project: Project): Beat[] {
+    return [...project.beats].sort((a, b) => a.order - b.order)
   }
 
   // TODO: Implement export to JSON

@@ -36,6 +36,26 @@
 
       <v-divider vertical class="mx-2" />
 
+      <!-- View Mode Toggle -->
+      <v-btn-toggle
+        v-model="viewMode"
+        mandatory
+        density="compact"
+        color="accent"
+        class="mr-2"
+      >
+        <v-btn value="canvas" size="small" aria-label="Canvas view">
+          <v-icon>mdi-grid</v-icon>
+          <v-tooltip activator="parent" location="bottom">Vista Canvas</v-tooltip>
+        </v-btn>
+        <v-btn value="grid" size="small" aria-label="Grid view">
+          <v-icon>mdi-view-list</v-icon>
+          <v-tooltip activator="parent" location="bottom">Vista Grid</v-tooltip>
+        </v-btn>
+      </v-btn-toggle>
+
+      <v-divider vertical class="mx-2" />
+
       <v-btn icon @click="handleZoomIn">
         <v-icon>mdi-magnify-plus</v-icon>
         <v-tooltip activator="parent" location="bottom">Zoom +</v-tooltip>
@@ -54,12 +74,23 @@
       </v-btn>
     </v-app-bar>
 
-    <!-- Beat Canvas -->
-    <v-sheet class="beat-canvas-container">
+    <!-- Beat Canvas (shown in canvas mode) -->
+    <v-sheet 
+      v-if="viewMode === 'canvas'" 
+      class="beat-canvas-container"
+      @mousedown="handleCanvasMouseDown"
+      @mousemove="handleCanvasMouseMove"
+      @mouseup="handleCanvasMouseUp"
+      @mouseleave="handleCanvasMouseUp"
+      :style="{ cursor: isPanning ? 'grabbing' : 'grab' }"
+    >
       <div
         ref="canvasRef"
         class="beat-canvas"
-        :style="{ transform: `scale(${zoom})`, transformOrigin: 'top left' }"
+        :style="{ 
+          transform: `translate(${panOffset.x}px, ${panOffset.y}px) scale(${zoom})`, 
+          transformOrigin: 'top left' 
+        }"
       >
         <BeatCard
           v-for="beat in project.beats"
@@ -69,6 +100,15 @@
           @click="openEditDialog(beat)"
         />
       </div>
+    </v-sheet>
+
+    <!-- Beat Grid (shown in grid mode) -->
+    <v-sheet v-else class="beat-grid-container">
+      <BeatGridView
+        :beats="sortedBeats"
+        :beat-types="project.beatTypes"
+        @beat-click="openEditDialog"
+      />
     </v-sheet>
 
     <!-- Edit Beat Dialog -->
@@ -89,12 +129,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import type { Beat, BeatType, Project } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatEditDialog from '@/presentation/components/BeatEditDialog.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
+import BeatGridView from '@/presentation/components/BeatGridView.vue'
 
 const project = ref<Project>(projectService.loadCurrentProject())
 const zoom = ref(1)
@@ -102,6 +143,35 @@ const showEditDialog = ref(false)
 const showNewBeatDialog = ref(false)
 const selectedBeat = ref<Beat | null>(null)
 const canvasRef = ref<HTMLElement | null>(null)
+
+// Pan state for canvas dragging
+const isPanning = ref(false)
+const PAN_OFFSET_KEY = 'escaleta-canvas-pan-offset'
+const savedPanOffset = localStorage.getItem(PAN_OFFSET_KEY)
+const panOffset = ref(savedPanOffset ? JSON.parse(savedPanOffset) : { x: 0, y: 0 })
+const panStart = ref({ x: 0, y: 0 })
+const lastPanOffset = ref({ x: 0, y: 0 })
+
+// View mode: 'canvas' or 'grid', persisted in localStorage
+const VIEW_MODE_KEY = 'escaleta-view-mode'
+const viewMode = ref<'canvas' | 'grid'>(
+  (localStorage.getItem(VIEW_MODE_KEY) as 'canvas' | 'grid') || 'canvas'
+)
+
+// Computed property to get beats sorted by order
+const sortedBeats = computed(() => {
+  return projectService.getSortedBeats(project.value)
+})
+
+// Watch viewMode and persist changes
+watch(viewMode, (newMode) => {
+  localStorage.setItem(VIEW_MODE_KEY, newMode)
+})
+
+// Watch panOffset and persist changes
+watch(panOffset, (newOffset) => {
+  localStorage.setItem(PAN_OFFSET_KEY, JSON.stringify(newOffset))
+}, { deep: true })
 
 onMounted(() => {
   // Project is already loaded in ref initialization
@@ -167,14 +237,44 @@ function handleZoomIn() {
 function handleZoomOut() {
   zoom.value = Math.max(zoom.value - 0.1, 0.5)
 }
+
+// Canvas panning handlers
+function handleCanvasMouseDown(event: MouseEvent) {
+  // Only start panning if clicking on the canvas background (not on a beat card)
+  const target = event.target as HTMLElement
+  if (target.closest('[data-testid="beat-card"]')) {
+    return // Clicked on a beat card, don't pan
+  }
+
+  isPanning.value = true
+  panStart.value = { x: event.clientX, y: event.clientY }
+  lastPanOffset.value = { ...panOffset.value }
+}
+
+function handleCanvasMouseMove(event: MouseEvent) {
+  if (!isPanning.value) return
+
+  const deltaX = event.clientX - panStart.value.x
+  const deltaY = event.clientY - panStart.value.y
+
+  panOffset.value = {
+    x: lastPanOffset.value.x + deltaX,
+    y: lastPanOffset.value.y + deltaY
+  }
+}
+
+function handleCanvasMouseUp() {
+  isPanning.value = false
+}
 </script>
 
 <style scoped>
 .beat-canvas-container {
   flex: 1;
-  overflow: auto;
+  overflow: hidden; /* Changed from auto to hidden to prevent scrollbars during pan */
   background: #f5f5f5;
   position: relative;
+  user-select: none; /* Prevent text selection during drag */
 }
 
 .beat-canvas {
@@ -182,5 +282,12 @@ function handleZoomOut() {
   min-width: 2000px;
   min-height: 1000px;
   /* TODO: Add grid background for visual reference */
+}
+
+.beat-grid-container {
+  flex: 1;
+  overflow: auto;
+  background: #ffffff;
+  padding: 16px;
 }
 </style>

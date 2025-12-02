@@ -38,6 +38,8 @@ describe('ProjectService', () => {
         expect(beat.title).toBeDefined()
         expect(beat.description).toBeDefined()
         expect(beat.typeId).toBeDefined()
+        expect(beat.order).toBeDefined()
+        expect(typeof beat.order).toBe('number')
         expect(beat.position).toHaveProperty('x')
         expect(beat.position).toHaveProperty('y')
         expect(Array.isArray(beat.links)).toBe(true)
@@ -73,6 +75,8 @@ describe('ProjectService', () => {
       expect(beat.id).toBeDefined()
       expect(beat.typeId).toBe(typeId)
       expect(beat.title).toContain(project.beatTypes[0].name)
+      expect(beat.order).toBeDefined()
+      expect(typeof beat.order).toBe('number')
       expect(beat.position).toHaveProperty('x')
       expect(beat.position).toHaveProperty('y')
     })
@@ -85,6 +89,16 @@ describe('ProjectService', () => {
       const newBeat = service.createBeat(typeId, project)
 
       expect(newBeat.position.x).toBeGreaterThan(maxX)
+    })
+
+    it('should assign next order number to new beat', () => {
+      const project = service.createExampleProject()
+      const maxOrder = Math.max(...project.beats.map(b => b.order))
+
+      const typeId = project.beatTypes[0].id
+      const newBeat = service.createBeat(typeId, project)
+
+      expect(newBeat.order).toBe(maxOrder + 1)
     })
   })
 
@@ -128,6 +142,30 @@ describe('ProjectService', () => {
 
       expect(updated.beats.length).toBe(initialCount - 1)
       expect(updated.beats.find(b => b.id === beatId)).toBeUndefined()
+    })
+  })
+
+  describe('getSortedBeats', () => {
+    it('should return beats sorted by order field', () => {
+      const project = service.createExampleProject()
+      
+      const sorted = service.getSortedBeats(project)
+
+      // Check that beats are sorted by order
+      for (let i = 0; i < sorted.length - 1; i++) {
+        expect(sorted[i].order).toBeLessThanOrEqual(sorted[i + 1].order)
+      }
+    })
+
+    it('should not mutate original project beats array', () => {
+      const project = service.createExampleProject()
+      const originalOrder = project.beats.map(b => b.id)
+      
+      service.getSortedBeats(project)
+
+      // Original array should remain unchanged
+      const currentOrder = project.beats.map(b => b.id)
+      expect(currentOrder).toEqual(originalOrder)
     })
   })
 
