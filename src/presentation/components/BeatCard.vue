@@ -35,22 +35,20 @@
           <span class="text-caption" :style="{ color: getContrastColor(beatType?.color) }">
             {{ beatType?.name || 'Unknown' }}
           </span>
-          <!-- Connection indicators -->
-          <v-icon 
-            v-if="beat.prevBeatId" 
-            :color="getContrastColor(beatType?.color)" 
-            size="x-small" 
-            class="ml-auto mr-1"
+          
+          <!-- Disconnect button (only for connected beats) -->
+          <v-btn
+            v-if="beat.prevBeatId || beat.nextBeatId"
+            icon
+            size="x-small"
+            class="ml-auto disconnect-btn"
+            :color="getContrastColor(beatType?.color)"
+            @click.stop="handleDisconnect"
+            aria-label="Disconnect beat"
           >
-            mdi-arrow-up-bold
-          </v-icon>
-          <v-icon 
-            v-if="beat.nextBeatId" 
-            :color="getContrastColor(beatType?.color)" 
-            size="x-small" 
-          >
-            mdi-arrow-down-bold
-          </v-icon>
+            <v-icon size="small">mdi-link-variant-off</v-icon>
+            <v-tooltip activator="parent" location="top">Desconectar</v-tooltip>
+          </v-btn>
         </div>
         <div class="beat-title" :style="{ color: getContrastColor(beatType?.color) }">
           {{ beat.title }}
@@ -78,9 +76,10 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   click: []
-  dragstart: [beatId: string]
+  dragstart: [beatId: string, isShiftKey: boolean]
   dragmove: [beatId: string, deltaX: number, deltaY: number]
   dragend: [beatId: string]
+  disconnect: [beatId: string]
 }>()
 
 const isDragging = ref(false)
@@ -91,15 +90,24 @@ function handleMouseDown(event: MouseEvent) {
   // Prevent triggering click on canvas pan
   event.stopPropagation()
   
+  // Prevent drag if clicking on disconnect button
+  if ((event.target as HTMLElement).closest('.disconnect-btn')) {
+    return
+  }
+  
   isDragging.value = true
   hasMoved.value = false
   dragStart.value = { x: event.clientX, y: event.clientY }
   
-  emit('dragstart', props.beat.id)
+  emit('dragstart', props.beat.id, event.shiftKey)
   
   // Add global listeners for drag
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
+}
+
+function handleDisconnect() {
+  emit('disconnect', props.beat.id)
 }
 
 function handleMouseMove(event: MouseEvent) {
@@ -262,5 +270,23 @@ function getContrastColor(hexColor: string | undefined): string {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+/* Disconnect button */
+.disconnect-btn {
+  opacity: 0.7;
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.disconnect-btn:hover {
+  opacity: 1;
+  transform: scale(1.1);
+}
+
+/* On mobile/tablet, always show disconnect button */
+@media (hover: none) {
+  .disconnect-btn {
+    opacity: 0.9;
+  }
 }
 </style>

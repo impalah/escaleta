@@ -103,6 +103,7 @@
           @dragstart="handleBeatDragStart"
           @dragmove="handleBeatDragMove"
           @dragend="handleBeatDragEnd"
+          @disconnect="handleBeatDisconnect"
         />
       </div>
     </v-sheet>
@@ -166,6 +167,7 @@ const lastPanOffset = ref({ x: 0, y: 0 })
 const isDraggingBeat = ref(false)
 const draggingBeatId = ref<string | null>(null)
 const beatDragStartPosition = ref({ x: 0, y: 0 })
+const isDragToDisconnect = ref(false) // Shift key state
 
 // Magnet zones state
 const magnetZones = ref<Map<string, 'top' | 'bottom'>>(new Map())
@@ -296,36 +298,104 @@ function handleCanvasMouseUp() {
   isPanning.value = false
 }
 
+// Move entire connected chain of beats
+function moveConnectedChain(beatId: string, deltaX: number, deltaY: number) {
+  const beat = project.value.beats.find(b => b.id === beatId)
+  if (!beat) return
+  
+  const beatsToMove = new Set<string>()
+  beatsToMove.add(beatId)
+  
+  // Traverse backward to find all previous beats
+  let current = beat
+  while (current.prevBeatId) {
+    beatsToMove.add(current.prevBeatId)
+    current = project.value.beats.find(b => b.id === current!.prevBeatId)!
+    if (!current) break
+  }
+  
+  // Traverse forward to find all next beats
+  current = beat
+  while (current.nextBeatId) {
+    beatsToMove.add(current.nextBeatId)
+    current = project.value.beats.find(b => b.id === current!.nextBeatId)!
+    if (!current) break
+  }
+  
+  // Move all beats in the chain
+  project.value.beats = project.value.beats.map(b => {
+    if (beatsToMove.has(b.id)) {
+      // Calculate offset from dragged beat
+      const offset = b.id === beatId ? { x: 0, y: 0 } : {
+        x: b.position.x - (project.value.beats.find(bt => bt.id === beatId)?.position.x || 0),
+        y: b.position.y - (project.value.beats.find(bt => bt.id === beatId)?.position.y || 0)
+      }
+      
+      return {
+        ...b,
+        position: {
+          x: beatDragStartPosition.value.x + deltaX + offset.x,
+          y: beatDragStartPosition.value.y + deltaY + offset.y
+        },
+        updatedAt: new Date().toISOString()
+      }
+    }
+    return b
+  })
+}
+
 // Beat drag handlers
-function handleBeatDragStart(beatId: string) {
+function handleBeatDragStart(beatId: string, isShiftKey: boolean) {
   isDraggingBeat.value = true
   draggingBeatId.value = beatId
+  isDragToDisconnect.value = isShiftKey
   
   const beat = project.value.beats.find(b => b.id === beatId)
-  if (beat) {
-    beatDragStartPosition.value = { ...beat.position }
+  if (!beat) return
+  
+  // Si es Shift+Drag, desconectar el beat primero
+  if (isShiftKey && (beat.prevBeatId || beat.nextBeatId)) {
+    project.value = projectService.disconnectBeat(project.value, beatId)
   }
+  
+  // Guardar posición inicial del beat principal
+  beatDragStartPosition.value = { ...beat.position }
 }
 
 function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
   // Calculate new position accounting for zoom
-  const newX = beatDragStartPosition.value.x + (deltaX / zoom.value)
-  const newY = beatDragStartPosition.value.y + (deltaY / zoom.value)
+  const deltaXScaled = deltaX / zoom.value
+  const deltaYScaled = deltaY / zoom.value
   
-  // Update beat position in project (allow negative coordinates)
-  const beatIndex = project.value.beats.findIndex(b => b.id === beatId)
-  if (beatIndex !== -1) {
-    project.value.beats[beatIndex] = {
-      ...project.value.beats[beatIndex],
-      position: { x: newX, y: newY },
-      updatedAt: new Date().toISOString()
+  const beat = project.value.beats.find(b => b.id === beatId)
+  if (!beat) return
+  
+  // Si NO es Shift+Drag y el beat está conectado, mover toda la cadena
+  if (!isDragToDisconnect.value && (beat.prevBeatId || beat.nextBeatId)) {
+    moveConnectedChain(beatId, deltaXScaled, deltaYScaled)
+  } else {
+    // Mover solo este beat
+    const newX = beatDragStartPosition.value.x + deltaXScaled
+    const newY = beatDragStartPosition.value.y + deltaYScaled
+    
+    const beatIndex = project.value.beats.findIndex(b => b.id === beatId)
+    if (beatIndex !== -1) {
+      project.value.beats[beatIndex] = {
+        ...project.value.beats[beatIndex],
+        position: { x: newX, y: newY },
+        updatedAt: new Date().toISOString()
+      }
     }
   }
   
-  // Detect magnet zone overlaps with other beats
-  detectMagnetZones(beatId, newX, newY)
+  // Detectar zonas magnéticas solo si es drag individual (Shift o beat solitario)
+  if (isDragToDisconnect.value || (!beat.prevBeatId && !beat.nextBeatId)) {
+    const newX = beatDragStartPosition.value.x + deltaXScaled
+    const newY = beatDragStartPosition.value.y + deltaYScaled
+    detectMagnetZones(beatId, newX, newY)
+  }
 }
 
 function detectMagnetZones(draggingBeatId: string, beatX: number, beatY: number) {
@@ -399,6 +469,12 @@ function handleBeatDragEnd(beatId: string) {
   // Save project with updated position and connections
   projectService.saveCurrentProject(project.value)
   console.log(connectionMade ? 'Beat connected' : 'Beat position saved')
+}
+
+function handleBeatDisconnect(beatId: string) {
+  project.value = projectService.disconnectBeat(project.value, beatId)
+  projectService.saveCurrentProject(project.value)
+  console.log('Beat disconnected')
 }
 </script>
 
