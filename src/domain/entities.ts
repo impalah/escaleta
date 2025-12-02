@@ -6,13 +6,20 @@
 export interface Beat {
   id: string
   title: string
-  description: string
+  description: string // Renamed to script in UI, but keeping field name for compatibility
   typeId: string
   order: number
   position: { x: number; y: number }
   links: string[] // IDs of related beats (deprecated)
   prevBeatId?: string // Beat anterior en la cadena
   nextBeatId?: string // Beat siguiente en la cadena
+  // New fields for production
+  eventDuration?: string // Format: mm:ss.ms (milliseconds optional)
+  eventStartTime?: string // Format: hh:mm:ss.ms (milliseconds optional)
+  scene?: string // INT/EXT, location, day/night indicators
+  character?: string // Character performing the action
+  cue?: string // Technical event to trigger
+  assets?: string[] // List of assets to include
   createdAt: string
   updatedAt: string
 }

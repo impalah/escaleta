@@ -27,16 +27,6 @@
       </template>
     </v-select>
 
-    <v-textarea
-      v-model="localBeat.description"
-      label="Descripción"
-      variant="outlined"
-      rows="4"
-      density="comfortable"
-      @input="handleUpdate"
-      class="mb-4"
-    />
-
     <v-text-field
       v-model.number="localBeat.order"
       label="Orden"
@@ -46,38 +36,89 @@
       hint="Número de orden para la secuencia (menor = primero)"
       persistent-hint
       @input="handleUpdate"
+      class="mb-4"
     />
 
-    <div class="metadata mt-4">
-      <div class="metadata-item">
-        <span class="metadata-label">ID:</span>
-        <span class="metadata-value">{{ localBeat.id.substring(0, 8) }}...</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Posición X:</span>
-        <span class="metadata-value">{{ Math.round(localBeat.position.x) }}px</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Posición Y:</span>
-        <span class="metadata-value">{{ Math.round(localBeat.position.y) }}px</span>
-      </div>
-      <div class="metadata-item" v-if="localBeat.prevBeatId">
-        <span class="metadata-label">Beat anterior:</span>
-        <span class="metadata-value">Conectado</span>
-      </div>
-      <div class="metadata-item" v-if="localBeat.nextBeatId">
-        <span class="metadata-label">Beat siguiente:</span>
-        <span class="metadata-value">Conectado</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Creado:</span>
-        <span class="metadata-value">{{ formatDate(localBeat.createdAt) }}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Modificado:</span>
-        <span class="metadata-value">{{ formatDate(localBeat.updatedAt) }}</span>
-      </div>
-    </div>
+    <v-text-field
+      v-model="localBeat.eventDuration"
+      label="Duración estimada"
+      variant="outlined"
+      density="comfortable"
+      placeholder="mm:ss.ms"
+      hint="Formato: mm:ss.ms (ej: 02:30.500)"
+      persistent-hint
+      @input="handleUpdate"
+      class="mb-4"
+    />
+
+    <v-text-field
+      v-model="localBeat.eventStartTime"
+      label="Hora inicio estimada"
+      variant="outlined"
+      density="comfortable"
+      placeholder="hh:mm:ss.ms"
+      hint="Formato: hh:mm:ss.ms (ej: 14:30:00.000)"
+      persistent-hint
+      @input="handleUpdate"
+      class="mb-4"
+    />
+
+    <v-text-field
+      v-model="localBeat.scene"
+      label="Escena"
+      variant="outlined"
+      density="comfortable"
+      placeholder="INT/EXT, ubicación, día/noche"
+      hint="Ej: INT. OFICINA - DÍA"
+      persistent-hint
+      @input="handleUpdate"
+      class="mb-4"
+    />
+
+    <v-text-field
+      v-model="localBeat.character"
+      label="Personaje"
+      variant="outlined"
+      density="comfortable"
+      placeholder="Nombre del personaje"
+      @input="handleUpdate"
+      class="mb-4"
+    />
+
+    <v-text-field
+      v-model="localBeat.cue"
+      label="Cue (Evento técnico)"
+      variant="outlined"
+      density="comfortable"
+      placeholder="Indicación técnica"
+      @input="handleUpdate"
+      class="mb-4"
+    />
+
+    <v-combobox
+      v-model="localBeat.assets"
+      label="Assets"
+      variant="outlined"
+      density="comfortable"
+      multiple
+      chips
+      closable-chips
+      placeholder="Añadir asset"
+      hint="Presiona Enter para añadir un nuevo asset"
+      persistent-hint
+      @update:model-value="handleUpdate"
+      class="mb-4"
+    />
+
+    <v-textarea
+      v-model="localBeat.description"
+      label="Script"
+      variant="outlined"
+      rows="6"
+      density="comfortable"
+      placeholder="Texto del guion para este beat"
+      @input="handleUpdate"
+    />
   </div>
 </template>
 
@@ -94,11 +135,17 @@ const emit = defineEmits<{
   update: [beat: Beat]
 }>()
 
-const localBeat = ref<Beat>({ ...props.beat })
+const localBeat = ref<Beat>({ 
+  ...props.beat,
+  assets: props.beat.assets || [] // Ensure assets is always an array
+})
 
 // Watch for external changes to beat
 watch(() => props.beat, (newBeat) => {
-  localBeat.value = { ...newBeat }
+  localBeat.value = { 
+    ...newBeat,
+    assets: newBeat.assets || [] // Ensure assets is always an array
+  }
 }, { deep: true })
 
 const beatTypeItems = computed(() =>
@@ -118,17 +165,6 @@ function handleUpdate() {
   // Emit updated beat
   emit('update', { ...localBeat.value })
 }
-
-function formatDate(isoString: string): string {
-  const date = new Date(isoString)
-  return date.toLocaleDateString('es-ES', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })
-}
 </script>
 
 <style scoped>
@@ -143,29 +179,6 @@ function formatDate(isoString: string): string {
   color: #fff;
   border-bottom: 1px solid #444;
   padding-bottom: 8px;
-}
-
-.metadata {
-  background-color: #1e1e1e;
-  border-radius: 4px;
-  padding: 12px;
-  border: 1px solid #444;
-}
-
-.metadata-item {
-  display: flex;
-  justify-content: space-between;
-  padding: 6px 0;
-  font-size: 13px;
-}
-
-.metadata-label {
-  color: #999;
-  font-weight: 500;
-}
-
-.metadata-value {
-  color: #e0e0e0;
 }
 
 /* Override Vuetify dark theme colors for better contrast */
