@@ -95,9 +95,15 @@ describe('LocalStorageService', () => {
     it('should return null if JSON is invalid', () => {
       mockLocalStorage['escaleta.currentProject'] = 'invalid json'
 
+      // Suppress expected console error
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
       const loaded = service.loadProject()
 
       expect(loaded).toBeNull()
+      
+      // Restore console.error
+      consoleError.mockRestore()
     })
   })
 

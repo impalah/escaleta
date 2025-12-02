@@ -5,6 +5,11 @@ Visual rundown editor for TV show and news production.
 ## 🚀 Features
 
 - **Visual beat editor** with canvas-style positionable cards
+- **Properties panel** - AutoCAD/Photoshop-style dockable panel for editing beats and project
+  - Anchor to left or right side
+  - Resizable width (drag border)
+  - Auto-hide when not pinned
+  - Real-time auto-save (no save button needed)
 - **Beat connections** - Smart magnet zones for linking beats in sequence with visual feedback
 - **Group movement** - Drag connected beats as a group, or use Shift+Drag to move individually
 - **Grid view** - Switch between canvas and table/grid views for different workflows
@@ -79,14 +84,33 @@ src/
 ## 📝 Basic Usage
 
 1. When opening the application, an example project loads automatically
-2. Click on any beat to edit it (title, type, description, **order**)
-3. Use the "+" button in the toolbar to add new beats
-4. **Toggle between canvas and grid views** using the view mode buttons in the toolbar
-5. **In grid view**, beats are displayed in a sortable table ordered by their sequence number
-6. **In canvas view**, beats are positioned freely on a 2D canvas
-7. Changes are automatically saved to localStorage
-8. Your preferred view mode (canvas/grid) is remembered between sessions
-9. Use zoom controls to adjust the canvas view
+2. **Properties panel** appears on the right side by default:
+   - Click the **pin icon** to keep it always visible
+   - Click the **dock icon** to switch between left/right anchoring
+   - **Drag the left border** to resize the panel width
+   - Panel auto-hides when not pinned (shows on selection or hover)
+3. Click on the **canvas background** to edit project properties (name, description)
+4. Click on any **beat card** to edit its properties (title, type, description, order)
+5. All changes are **saved automatically** as you type - no save button needed
+6. Use the "+" button in the toolbar to add new beats
+7. **Toggle between canvas and grid views** using the view mode buttons in the toolbar
+8. **In grid view**, beats are displayed in a sortable table ordered by their sequence number
+9. **In canvas view**, beats are positioned freely on a 2D canvas with drag & drop
+10. Use zoom controls to adjust the canvas view
+
+### Properties Panel
+
+The properties panel is inspired by AutoCAD/Photoshop and is **always visible**:
+- **Maximize button** (🗖): Toggle full-screen mode
+  - Expands panel to fill entire window
+  - Remembers previous width when restoring
+- **Dock button** (⇄): Switch between left and right anchoring
+- **Side tab**: Shows current selection - "PROPIEDADES" (empty), "PROYECTO - Name" or "BEAT - Title"
+- **Resizable**: Drag the border to adjust width (200px minimum, no maximum)
+- **Auto-selection**:
+  - Click on canvas background → Shows project properties
+  - Click on any beat → Shows beat properties
+- **Persistent**: All preferences saved to localStorage (width, anchor side, maximized state)
 
 ### View Modes
 

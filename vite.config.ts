@@ -16,6 +16,9 @@ export default defineConfig({
   server: {
     port: 3000
   },
+  build: {
+    chunkSizeWarningLimit: 1000 // Increase limit to 1000 kB (Vuetify bundles are large)
+  },
   test: {
     globals: true,
     environment: 'jsdom',

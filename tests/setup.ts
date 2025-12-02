@@ -8,27 +8,29 @@ vi.mock('@mdi/font/css/materialdesignicons.css', () => ({}))
 
 // Stub all Vuetify components globally
 config.global.stubs = {
-  VApp: true,
-  VAppBar: true,
+  VApp: { template: '<div><slot /></div>' },
+  VAppBar: { template: '<div><slot /></div>' },
   VToolbarTitle: { template: '<div><slot /></div>' },
-  VSpacer: true,
-  VBtn: true,
-  VIcon: true,
-  VTooltip: true,
-  VMenu: true,
-  VList: true,
-  VListItem: true,
-  VDivider: true,
+  VSpacer: { template: '<div></div>' },
+  VBtn: { template: '<button><slot /></button>' },
+  VIcon: { template: '<i><slot /></i>' },
+  VTooltip: { template: '<div><slot /></div>' },
+  VMenu: { template: '<div><slot /></div>' },
+  VList: { template: '<div><slot /></div>' },
+  VListItem: { template: '<div><slot /></div>' },
+  VListItemTitle: { template: '<div><slot /></div>' },
+  VDivider: { template: '<hr />' },
   VSheet: { template: '<div class="v-sheet"><slot /></div>' },
   VContainer: { template: '<div><slot /></div>' },
-  VDialog: true,
-  VCard: true,
-  VCardTitle: true,
-  VCardText: true,
-  VCardActions: true,
-  VTextField: true,
-  VSelect: true,
-  VTextarea: true
+  VDialog: { template: '<div><slot /></div>' },
+  VCard: { template: '<div><slot /></div>' },
+  VCardTitle: { template: '<div><slot /></div>' },
+  VCardText: { template: '<div><slot /></div>' },
+  VCardActions: { template: '<div><slot /></div>' },
+  VTextField: { template: '<input />' },
+  VSelect: { template: '<select><slot /></select>' },
+  VTextarea: { template: '<textarea></textarea>' },
+  VBtnToggle: { template: '<div><slot /></div>' }
 }
 
 // Mock window.matchMedia

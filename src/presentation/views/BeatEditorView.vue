@@ -99,7 +99,7 @@
           :beat="beat"
           :beat-type="getBeatType(beat.typeId)"
           :magnet-zone="magnetZones.get(beat.id) || null"
-          @click="openEditDialog(beat)"
+          @click="selectBeat(beat)"
           @dragstart="handleBeatDragStart"
           @dragmove="handleBeatDragMove"
           @dragend="handleBeatDragEnd"
@@ -113,16 +113,16 @@
       <BeatGridView
         :beats="sortedBeats"
         :beat-types="project.beatTypes"
-        @beat-click="openEditDialog"
+        @beat-click="selectBeat"
       />
     </v-sheet>
 
-    <!-- Edit Beat Dialog -->
-    <BeatEditDialog
-      v-model="showEditDialog"
-      :beat="selectedBeat"
+    <!-- Properties Panel -->
+    <PropertiesPanel
+      :selected-entity="selectedEntity"
       :beat-types="project.beatTypes"
-      @save="handleSaveBeat"
+      @update-project="handleUpdateProject"
+      @update-beat="handleUpdateBeat"
     />
 
     <!-- New Beat Dialog -->
@@ -139,7 +139,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import type { Beat, BeatType, Project } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
-import BeatEditDialog from '@/presentation/components/BeatEditDialog.vue'
+import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
 import BeatGridView from '@/presentation/components/BeatGridView.vue'
 
@@ -150,10 +150,18 @@ const ZOOM_KEY = 'escaleta-canvas-zoom'
 const savedZoom = localStorage.getItem(ZOOM_KEY)
 const zoom = ref(savedZoom ? parseFloat(savedZoom) : 1)
 
-const showEditDialog = ref(false)
 const showNewBeatDialog = ref(false)
-const selectedBeat = ref<Beat | null>(null)
 const canvasRef = ref<HTMLElement | null>(null)
+
+// Selected entity for properties panel
+interface SelectedEntity {
+  type: 'project' | 'beat'
+  data: Project | Beat
+}
+const selectedEntity = ref<SelectedEntity | null>({
+  type: 'project',
+  data: project.value
+})
 
 // Pan state for canvas dragging
 const isPanning = ref(false)
@@ -211,19 +219,36 @@ function getBeatType(typeId: string): BeatType | undefined {
   return project.value.beatTypes.find(t => t.id === typeId)
 }
 
-function openEditDialog(beat: Beat) {
-  selectedBeat.value = beat
-  showEditDialog.value = true
+function selectBeat(beat: Beat) {
+  selectedEntity.value = {
+    type: 'beat',
+    data: beat
+  }
 }
 
-function handleSaveBeat(updates: Partial<Beat>) {
-  if (!selectedBeat.value) return
+function selectProject() {
+  selectedEntity.value = {
+    type: 'project',
+    data: project.value
+  }
+}
 
-  project.value = projectService.updateBeat(project.value, selectedBeat.value.id, updates)
+function handleUpdateProject(updatedProject: Project) {
+  project.value = updatedProject
   projectService.saveCurrentProject(project.value)
+  // Update selected entity to reflect changes
+  if (selectedEntity.value?.type === 'project') {
+    selectedEntity.value.data = updatedProject
+  }
+}
 
-  showEditDialog.value = false
-  selectedBeat.value = null
+function handleUpdateBeat(updatedBeat: Beat) {
+  project.value = projectService.updateBeat(project.value, updatedBeat.id, updatedBeat)
+  projectService.saveCurrentProject(project.value)
+  // Update selected entity to reflect changes
+  if (selectedEntity.value?.type === 'beat') {
+    selectedEntity.value.data = updatedBeat
+  }
 }
 
 function handleCreateBeat(typeId: string) {
@@ -276,6 +301,9 @@ function handleCanvasMouseDown(event: MouseEvent) {
   if (target.closest('[data-testid="beat-card"]')) {
     return // Clicked on a beat card, don't pan
   }
+
+  // Clicking on empty canvas shows project properties
+  selectProject()
 
   isPanning.value = true
   panStart.value = { x: event.clientX, y: event.clientY }
