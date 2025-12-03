@@ -9,27 +9,27 @@
       <!-- Toolbar buttons -->
       <v-btn icon @click="handleNewProject" aria-label="New project">
         <v-icon>mdi-file-plus</v-icon>
-        <v-tooltip activator="parent" location="bottom">Nuevo Proyecto</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.newProject') }}</v-tooltip>
       </v-btn>
 
       <v-btn icon @click="handleSave" aria-label="Save project">
         <v-icon>mdi-content-save</v-icon>
-        <v-tooltip activator="parent" location="bottom">Guardar</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.save') }}</v-tooltip>
       </v-btn>
 
       <v-menu>
         <template #activator="{ props }">
           <v-btn icon v-bind="props">
             <v-icon>mdi-export</v-icon>
-            <v-tooltip activator="parent" location="bottom">Exportar</v-tooltip>
+            <v-tooltip activator="parent" location="bottom">{{ t('toolbar.export') }}</v-tooltip>
           </v-btn>
         </template>
         <v-list>
           <v-list-item @click="handleExportJSON">
-            <v-list-item-title>Exportar a JSON</v-list-item-title>
+            <v-list-item-title>{{ t('toolbar.exportToJSON') }}</v-list-item-title>
           </v-list-item>
           <v-list-item @click="handleExportScript">
-            <v-list-item-title>Exportar a Guion</v-list-item-title>
+            <v-list-item-title>{{ t('toolbar.exportToScript') }}</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -46,11 +46,11 @@
       >
         <v-btn value="canvas" size="small" aria-label="Canvas view">
           <v-icon>mdi-grid</v-icon>
-          <v-tooltip activator="parent" location="bottom">Vista Canvas</v-tooltip>
+          <v-tooltip activator="parent" location="bottom">{{ t('toolbar.canvasView') }}</v-tooltip>
         </v-btn>
         <v-btn value="grid" size="small" aria-label="Grid view">
           <v-icon>mdi-view-list</v-icon>
-          <v-tooltip activator="parent" location="bottom">Vista Grid</v-tooltip>
+          <v-tooltip activator="parent" location="bottom">{{ t('toolbar.gridView') }}</v-tooltip>
         </v-btn>
       </v-btn-toggle>
 
@@ -58,19 +58,39 @@
 
       <v-btn icon @click="handleZoomIn">
         <v-icon>mdi-magnify-plus</v-icon>
-        <v-tooltip activator="parent" location="bottom">Zoom +</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.zoomIn') }}</v-tooltip>
       </v-btn>
 
       <v-btn icon @click="handleZoomOut">
         <v-icon>mdi-magnify-minus</v-icon>
-        <v-tooltip activator="parent" location="bottom">Zoom -</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.zoomOut') }}</v-tooltip>
       </v-btn>
+
+      <v-divider vertical class="mx-2" />
+
+      <!-- Language Selector -->
+      <v-menu>
+        <template #activator="{ props }">
+          <v-btn icon v-bind="props">
+            <v-icon>mdi-translate</v-icon>
+            <v-tooltip activator="parent" location="bottom">{{ t('toolbar.language') }}</v-tooltip>
+          </v-btn>
+        </template>
+        <v-list>
+          <v-list-item @click="changeLanguage('es-ES')">
+            <v-list-item-title>{{ t('languages.es-ES') }}</v-list-item-title>
+          </v-list-item>
+          <v-list-item @click="changeLanguage('en-US')">
+            <v-list-item-title>{{ t('languages.en-US') }}</v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
 
       <v-divider vertical class="mx-2" />
 
       <v-btn icon color="accent" @click="showNewBeatDialog = true" aria-label="Add beat">
         <v-icon>mdi-plus-circle</v-icon>
-        <v-tooltip activator="parent" location="bottom">Añadir Beat</v-tooltip>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.addBeat') }}</v-tooltip>
       </v-btn>
     </v-app-bar>
 
@@ -140,12 +160,16 @@
 
 <script setup lang="ts">
 import { ref, onMounted, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
+import { setLanguage } from '@/i18n'
 import type { Beat, BeatType, Project } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
 import BeatGridView from '@/presentation/components/BeatGridView.vue'
+
+const { t } = useI18n()
 
 const project = ref<Project>(projectService.loadCurrentProject())
 
@@ -287,7 +311,11 @@ function handleExportJSON() {
 
 function handleExportScript() {
   // TODO: Implement script export
-  console.log('TODO: Export to script format')
+  console.log('TODO: Export to Script')
+}
+
+function changeLanguage(locale: string) {
+  setLanguage(locale)
 }
 
 function handleZoomIn() {

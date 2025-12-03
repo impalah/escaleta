@@ -1,6 +1,7 @@
 import type { Project, Beat, BeatType } from '@/domain/entities'
 import { storageService } from '@/infrastructure/LocalStorageService'
 import { v4 as uuidv4 } from '@/utils/uuid'
+import { t, getBeatTypeName, getNewBeatTitle } from '@/i18n/helpers'
 
 /**
  * Application layer: orchestrates business logic
@@ -57,8 +58,8 @@ export class ProjectService {
     const beats: Beat[] = [
       {
         id: uuidv4(),
-        title: 'Opening',
-        description: 'News show introduction and welcome',
+        title: t('examples.beats.opening.title'),
+        description: t('examples.beats.opening.description'),
         typeId: 'opening',
         order: 1,
         position: { x: 100, y: 100 },
@@ -68,8 +69,8 @@ export class ProjectService {
       },
       {
         id: uuidv4(),
-        title: 'News 1: National Politics',
-        description: 'Government announces new economic measures',
+        title: t('examples.beats.headline1.title'),
+        description: t('examples.beats.headline1.description'),
         typeId: 'news',
         order: 2,
         position: { x: 350, y: 100 },
@@ -79,9 +80,9 @@ export class ProjectService {
       },
       {
         id: uuidv4(),
-        title: 'VTR: Minister Interview',
-        description: 'Economy minister statements',
-        typeId: 'vtr',
+        title: t('examples.beats.headline2.title'),
+        description: t('examples.beats.headline2.description'),
+        typeId: 'news',
         order: 3,
         position: { x: 600, y: 100 },
         links: [],
@@ -90,21 +91,10 @@ export class ProjectService {
       },
       {
         id: uuidv4(),
-        title: 'News 2: International',
-        description: 'European summit on climate change',
-        typeId: 'news',
-        order: 4,
-        position: { x: 850, y: 100 },
-        links: [],
-        createdAt: now,
-        updatedAt: now
-      },
-      {
-        id: uuidv4(),
-        title: 'Sports',
-        description: 'Sports day highlights',
+        title: t('examples.beats.sports.title'),
+        description: t('examples.beats.sports.description'),
         typeId: 'sports',
-        order: 5,
+        order: 4,
         position: { x: 100, y: 350 },
         links: [],
         createdAt: now,
@@ -112,10 +102,10 @@ export class ProjectService {
       },
       {
         id: uuidv4(),
-        title: 'Weather',
-        description: 'Tomorrow\'s weather forecast',
+        title: t('examples.beats.weather.title'),
+        description: t('examples.beats.weather.description'),
         typeId: 'weather',
-        order: 6,
+        order: 5,
         position: { x: 350, y: 350 },
         links: [],
         createdAt: now,
@@ -123,11 +113,22 @@ export class ProjectService {
       },
       {
         id: uuidv4(),
-        title: 'Closing',
-        description: 'Farewell and preview of next broadcast',
+        title: t('examples.beats.headline3.title'),
+        description: t('examples.beats.headline3.description'),
+        typeId: 'news',
+        order: 6,
+        position: { x: 600, y: 350 },
+        links: [],
+        createdAt: now,
+        updatedAt: now
+      },
+      {
+        id: uuidv4(),
+        title: t('examples.beats.closing.title'),
+        description: t('examples.beats.closing.description'),
         typeId: 'closing',
         order: 7,
-        position: { x: 600, y: 350 },
+        position: { x: 850, y: 350 },
         links: [],
         createdAt: now,
         updatedAt: now
@@ -136,8 +137,8 @@ export class ProjectService {
 
     return {
       id: uuidv4(),
-      name: 'Example News Show',
-      description: 'Example project with news broadcast rundown',
+      name: t('examples.projectName'),
+      description: t('examples.projectDescription'),
       beats,
       beatTypes,
       createdAt: now,
@@ -152,8 +153,6 @@ export class ProjectService {
     return [
       { id: 'opening', name: 'Opening', color: '#4CAF50', icon: 'mdi-play-circle' },
       { id: 'news', name: 'News', color: '#2196F3', icon: 'mdi-newspaper' },
-      { id: 'vtr', name: 'VTR', color: '#9C27B0', icon: 'mdi-video' },
-      { id: 'interview', name: 'Interview', color: '#FF9800', icon: 'mdi-microphone' },
       { id: 'sports', name: 'Sports', color: '#F44336', icon: 'mdi-soccer' },
       { id: 'weather', name: 'Weather', color: '#00BCD4', icon: 'mdi-weather-partly-cloudy' },
       { id: 'closing', name: 'Closing', color: '#607D8B', icon: 'mdi-stop-circle' }
@@ -165,7 +164,6 @@ export class ProjectService {
    */
   createBeat(typeId: string, project: Project): Beat {
     const now = new Date().toISOString()
-    const beatType = project.beatTypes.find(t => t.id === typeId)
 
     // Calculate next available position (simple horizontal layout)
     const maxX = project.beats.reduce((max, b) => Math.max(max, b.position.x), 0)
@@ -177,7 +175,7 @@ export class ProjectService {
 
     return {
       id: uuidv4(),
-      title: `New ${beatType?.name || 'Beat'}`,
+      title: getNewBeatTitle(typeId),
       description: '',
       typeId,
       order: nextOrder,

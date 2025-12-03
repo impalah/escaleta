@@ -22,8 +22,8 @@ test.describe('Mobile Touch Events', () => {
   test('should have touch drag functionality in beat cards', async ({ page }) => {
     await page.goto('/')
 
-    // Make sure we're in canvas view
-    await page.click('button[aria-label="Canvas view"]')
+    // Make sure we're in canvas view (force click to avoid tooltip interception)
+    await page.click('button[value="canvas"]', { force: true })
     
     // Get the first beat card
     const firstBeat = page.locator('[data-testid="beat-card"]').first()
@@ -55,8 +55,8 @@ test.describe('Mobile Touch Events', () => {
   test('should have touch event handlers on canvas', async ({ page }) => {
     await page.goto('/')
 
-    // Make sure we're in canvas view
-    await page.click('button[aria-label="Canvas view"]')
+    // Make sure we're in canvas view (force click to avoid tooltip interception)
+    await page.click('button[value="canvas"]', { force: true })
     
     const canvas = page.locator('.beat-canvas-container')
     await expect(canvas).toBeVisible()

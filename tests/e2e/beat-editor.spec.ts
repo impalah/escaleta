@@ -50,7 +50,7 @@ test.describe('Beat Editor', () => {
     await page.click('[data-testid="beat-card"]:has-text("New News")')
 
     // Wait for properties panel to show beat properties
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
     
     // Fill in beat details in properties panel
     const titleInput = page.locator('.properties-panel-container input[label="Título"]').or(page.locator('.properties-panel-container').locator('input').first())
@@ -77,7 +77,7 @@ test.describe('Beat Editor', () => {
     await firstBeat.click()
 
     // Properties panel should show beat properties
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
 
     // Modify the title in properties panel
     const titleInput = page.locator('.properties-panel-container').locator('input').first()
@@ -105,7 +105,7 @@ test.describe('Beat Editor', () => {
 
     // Find and edit the new beat via properties panel
     await page.click('[data-testid="beat-card"]:has-text("New Sports")')
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
     
     const titleInput = page.locator('.properties-panel-container').locator('input').first()
     await titleInput.click()
@@ -129,7 +129,7 @@ test.describe('Beat Editor', () => {
     const firstBeat = page.locator('[data-testid="beat-card"]').first()
     await firstBeat.click()
     
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
     const titleInput = page.locator('.properties-panel-container').locator('input').first()
     await titleInput.click()
     await titleInput.press('Meta+a')
@@ -259,7 +259,7 @@ test.describe('Beat Editor', () => {
     await firstRow.click()
     
     // Properties panel should show beat properties
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
     
     // Modify the order field
     const orderInput = page.locator('.properties-panel-container input[type="number"]')
@@ -283,7 +283,7 @@ test.describe('Beat Editor', () => {
     await firstBeat.click()
 
     // Wait for properties panel
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
 
     // Find and fill new production fields
     // Duration field
@@ -325,7 +325,7 @@ test.describe('Beat Editor', () => {
     
     // Select the same beat again
     await firstBeat.click()
-    await page.waitForSelector('text=Propiedades del Beat', { state: 'visible' })
+    await page.waitForSelector('.properties-panel-container', { state: 'visible' })
 
     // Verify fields are still populated
     if (await durationInput.isVisible()) {

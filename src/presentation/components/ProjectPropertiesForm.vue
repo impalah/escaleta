@@ -1,10 +1,10 @@
 <template>
   <div class="project-properties-form">
-    <h3 class="form-title">Propiedades del Proyecto</h3>
+    <h3 class="form-title">{{ t('propertiesPanel.project') }}</h3>
 
     <v-text-field
       v-model="localProject.name"
-      label="Nombre del proyecto"
+      :label="t('projectProperties.name')"
       variant="outlined"
       density="comfortable"
       @input="handleUpdate"
@@ -13,7 +13,7 @@
 
     <v-textarea
       v-model="localProject.description"
-      label="Descripción"
+      :label="t('projectProperties.description')"
       variant="outlined"
       density="comfortable"
       rows="3"
@@ -22,15 +22,11 @@
 
     <div class="metadata mt-4">
       <div class="metadata-item">
-        <span class="metadata-label">Beats totales:</span>
-        <span class="metadata-value">{{ localProject.beats.length }}</span>
-      </div>
-      <div class="metadata-item">
-        <span class="metadata-label">Creado:</span>
+        <span class="metadata-label">{{ t('projectProperties.createdAt') }}:</span>
         <span class="metadata-value">{{ formatDate(localProject.createdAt) }}</span>
       </div>
       <div class="metadata-item">
-        <span class="metadata-label">Modificado:</span>
+        <span class="metadata-label">{{ t('projectProperties.updatedAt') }}:</span>
         <span class="metadata-value">{{ formatDate(localProject.updatedAt) }}</span>
       </div>
     </div>
@@ -39,7 +35,10 @@
 
 <script setup lang="ts">
 import { ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Project } from '@/domain/entities'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   project: Project

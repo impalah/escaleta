@@ -29,7 +29,7 @@
         >
           <v-icon>{{ isMaximized ? 'mdi-window-restore' : 'mdi-window-maximize' }}</v-icon>
           <v-tooltip activator="parent" location="bottom">
-            {{ isMaximized ? 'Restaurar' : 'Maximizar' }}
+            {{ isMaximized ? t('propertiesPanel.restore') : t('propertiesPanel.maximize') }}
           </v-tooltip>
         </v-btn>
 
@@ -41,7 +41,7 @@
         >
           <v-icon>{{ anchorSide === 'right' ? 'mdi-dock-left' : 'mdi-dock-right' }}</v-icon>
           <v-tooltip activator="parent" location="bottom">
-            {{ anchorSide === 'right' ? 'Anclar a izquierda' : 'Anclar a derecha' }}
+            {{ anchorSide === 'right' ? t('propertiesPanel.dockLeft') : t('propertiesPanel.dockRight') }}
           </v-tooltip>
         </v-btn>
       </div>
@@ -80,9 +80,12 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Beat, BeatType, Project } from '@/domain/entities'
 import ProjectPropertiesForm from './ProjectPropertiesForm.vue'
 import BeatPropertiesForm from './BeatPropertiesForm.vue'
+
+const { t } = useI18n()
 
 interface SelectedEntity {
   type: 'project' | 'beat'
@@ -112,17 +115,17 @@ const resizeStartWidth = ref(0)
 
 // Tab text
 const tabText = computed(() => {
-  if (!props.selectedEntity) return 'PROPIEDADES'
+  if (!props.selectedEntity) return t('propertiesPanel.project').toUpperCase()
   
   if (props.selectedEntity.type === 'project') {
     const projectData = props.selectedEntity.data as Project
-    return `PROYECTO - ${projectData.name}`
+    return `${t('propertiesPanel.project').toUpperCase()} - ${projectData.name}`
   } else if (props.selectedEntity.type === 'beat') {
     const beatData = props.selectedEntity.data as Beat
     return `BEAT - ${beatData.title}`
   }
   
-  return 'PROPIEDADES'
+  return t('propertiesPanel.project').toUpperCase()
 })
 
 function toggleMaximize() {

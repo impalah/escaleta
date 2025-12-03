@@ -1,10 +1,10 @@
 <template>
   <div class="beat-properties-form">
-    <h3 class="form-title">Propiedades del Beat</h3>
+    <h3 class="form-title">{{ t('propertiesPanel.beat') }}</h3>
 
     <v-text-field
       v-model="localBeat.title"
-      label="Título"
+      :label="t('beatProperties.title')"
       variant="outlined"
       density="comfortable"
       @input="handleUpdate"
@@ -14,7 +14,7 @@
     <v-select
       v-model="localBeat.typeId"
       :items="beatTypeItems"
-      label="Tipo de Beat"
+      :label="t('beatProperties.type')"
       variant="outlined"
       density="comfortable"
       @update:model-value="handleUpdate"
@@ -29,23 +29,21 @@
 
     <v-text-field
       v-model.number="localBeat.order"
-      label="Orden"
+      :label="t('beatProperties.order')"
       type="number"
       variant="outlined"
       density="comfortable"
-      hint="Número de orden para la secuencia (menor = primero)"
-      persistent-hint
       @input="handleUpdate"
       class="mb-4"
     />
 
     <v-text-field
       v-model="localBeat.eventDuration"
-      label="Duración estimada"
+      :label="t('beatProperties.eventDuration')"
       variant="outlined"
       density="comfortable"
       placeholder="mm:ss.ms"
-      hint="Formato: mm:ss.ms (ej: 02:30.500)"
+      :hint="t('beatProperties.eventDurationHint')"
       persistent-hint
       @input="handleUpdate"
       class="mb-4"
@@ -53,11 +51,11 @@
 
     <v-text-field
       v-model="localBeat.eventStartTime"
-      label="Hora inicio estimada"
+      :label="t('beatProperties.eventStartTime')"
       variant="outlined"
       density="comfortable"
       placeholder="hh:mm:ss.ms"
-      hint="Formato: hh:mm:ss.ms (ej: 14:30:00.000)"
+      :hint="t('beatProperties.eventStartTimeHint')"
       persistent-hint
       @input="handleUpdate"
       class="mb-4"
@@ -65,11 +63,10 @@
 
     <v-text-field
       v-model="localBeat.scene"
-      label="Escena"
+      :label="t('beatProperties.scene')"
       variant="outlined"
       density="comfortable"
-      placeholder="INT/EXT, ubicación, día/noche"
-      hint="Ej: INT. OFICINA - DÍA"
+      :placeholder="t('beatProperties.sceneHint')"
       persistent-hint
       @input="handleUpdate"
       class="mb-4"
@@ -77,34 +74,33 @@
 
     <v-text-field
       v-model="localBeat.character"
-      label="Personaje"
+      :label="t('beatProperties.character')"
       variant="outlined"
       density="comfortable"
-      placeholder="Nombre del personaje"
+      :placeholder="t('beatProperties.characterHint')"
       @input="handleUpdate"
       class="mb-4"
     />
 
     <v-text-field
       v-model="localBeat.cue"
-      label="Cue (Evento técnico)"
+      :label="t('beatProperties.cue')"
       variant="outlined"
       density="comfortable"
-      placeholder="Indicación técnica"
+      :placeholder="t('beatProperties.cueHint')"
       @input="handleUpdate"
       class="mb-4"
     />
 
     <v-combobox
       v-model="localBeat.assets"
-      label="Assets"
+      :label="t('beatProperties.assets')"
       variant="outlined"
       density="comfortable"
       multiple
       chips
       closable-chips
-      placeholder="Añadir asset"
-      hint="Presiona Enter para añadir un nuevo asset"
+      :hint="t('beatProperties.assetsHint')"
       persistent-hint
       @update:model-value="handleUpdate"
       class="mb-4"
@@ -112,11 +108,10 @@
 
     <v-textarea
       v-model="localBeat.description"
-      label="Script"
+      :label="t('beatProperties.script')"
       variant="outlined"
       rows="6"
       density="comfortable"
-      placeholder="Texto del guion para este beat"
       @input="handleUpdate"
     />
   </div>
@@ -124,7 +119,10 @@
 
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Beat, BeatType } from '@/domain/entities'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   beat: Beat
@@ -151,7 +149,7 @@ watch(() => props.beat, (newBeat) => {
 const beatTypeItems = computed(() =>
   props.beatTypes.map(type => ({
     value: type.id,
-    title: type.name
+    title: t(`beatTypes.${type.id}`)
   }))
 )
 

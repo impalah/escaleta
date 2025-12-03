@@ -1,6 +1,19 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
+import { createI18n } from 'vue-i18n'
 import BeatEditorView from '@/presentation/views/BeatEditorView.vue'
+import esES from '@/i18n/locales/es-ES'
+import enUS from '@/i18n/locales/en-US'
+
+// Create i18n instance for tests
+const i18n = createI18n({
+  legacy: false,
+  locale: 'en-US',
+  messages: {
+    'es-ES': esES,
+    'en-US': enUS
+  }
+})
 
 // Mock all child components
 vi.mock('@/presentation/components/BeatCard.vue', () => ({
@@ -85,20 +98,32 @@ vi.mock('@/application/ProjectService', () => ({
 
 describe('BeatEditorView', () => {
   it('should load and display project data', () => {
-    const wrapper = mount(BeatEditorView)
+    const wrapper = mount(BeatEditorView, {
+      global: {
+        plugins: [i18n]
+      }
+    })
     // Check that beats are rendered
     expect(wrapper.text()).toContain('Beat 1')
     expect(wrapper.text()).toContain('Beat 2')
   })
 
   it('should render beat cards with titles', () => {
-    const wrapper = mount(BeatEditorView)
+    const wrapper = mount(BeatEditorView, {
+      global: {
+        plugins: [i18n]
+      }
+    })
     expect(wrapper.text()).toContain('Beat 1')
     expect(wrapper.text()).toContain('Beat 2')
   })
 
   it('should have canvas container', () => {
-    const wrapper = mount(BeatEditorView)
+    const wrapper = mount(BeatEditorView, {
+      global: {
+        plugins: [i18n]
+      }
+    })
     expect(wrapper.find('.beat-canvas').exists()).toBe(true)
   })
 })

@@ -1,7 +1,7 @@
 <template>
   <v-dialog :model-value="modelValue" max-width="500" @update:model-value="$emit('update:modelValue', $event)">
     <v-card>
-      <v-card-title class="text-h5">Seleccionar Tipo de Beat</v-card-title>
+      <v-card-title class="text-h5">{{ t('beatTypeDialog.title') }}</v-card-title>
 
       <v-card-text>
         <v-list>
@@ -9,7 +9,7 @@
             v-for="beatType in beatTypes"
             :key="beatType.id"
             :prepend-icon="beatType.icon"
-            :title="beatType.name"
+            :title="t(`beatTypes.${beatType.id}`)"
             @click="handleSelect(beatType.id)"
           >
             <template #prepend>
@@ -21,14 +21,17 @@
 
       <v-card-actions>
         <v-spacer />
-        <v-btn color="grey" variant="text" @click="handleCancel">Cancelar</v-btn>
+        <v-btn color="grey" variant="text" @click="handleCancel">{{ t('common.cancel') }}</v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
 import type { BeatType } from '@/domain/entities'
+
+const { t } = useI18n()
 
 defineProps<{
   modelValue: boolean

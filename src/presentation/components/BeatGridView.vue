@@ -16,7 +16,7 @@
         class="font-weight-medium"
       >
         <v-icon start :icon="getBeatType(item.typeId)?.icon" />
-        {{ getBeatType(item.typeId)?.name }}
+        {{ t(`beatTypes.${item.typeId}`) }}
       </v-chip>
     </template>
 
@@ -57,7 +57,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Beat, BeatType } from '@/domain/entities'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   beats: Beat[]
@@ -68,14 +71,14 @@ const emit = defineEmits<{
   'beat-click': [beat: Beat]
 }>()
 
-const headers = [
-  { title: 'Order', key: 'order', width: 80, sortable: true },
-  { title: 'Type', key: 'typeId', width: 150, sortable: true },
-  { title: 'Title', key: 'title', sortable: true },
-  { title: 'Description', key: 'description', sortable: false },
-  { title: 'Created', key: 'createdAt', width: 120, sortable: true },
-  { title: 'Updated', key: 'updatedAt', width: 120, sortable: true }
-]
+const headers = computed(() => [
+  { title: t('beatGrid.order'), key: 'order', width: 80, sortable: true },
+  { title: t('beatGrid.type'), key: 'typeId', width: 150, sortable: true },
+  { title: t('beatGrid.title'), key: 'title', sortable: true },
+  { title: t('beatGrid.duration'), key: 'eventDuration', width: 120, sortable: false },
+  { title: t('beatGrid.startTime'), key: 'eventStartTime', width: 120, sortable: false },
+  { title: t('beatGrid.scene'), key: 'scene', sortable: false }
+])
 
 const sortedBeats = computed(() => {
   return [...props.beats].sort((a, b) => a.order - b.order)

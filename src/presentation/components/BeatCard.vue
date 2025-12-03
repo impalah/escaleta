@@ -48,7 +48,7 @@
             aria-label="Disconnect beat"
           >
             <v-icon size="small">mdi-link-variant-off</v-icon>
-            <v-tooltip activator="parent" location="top">Desconectar</v-tooltip>
+            <v-tooltip activator="parent" location="top">{{ t('beatCard.disconnect') }}</v-tooltip>
           </v-btn>
         </div>
         <div class="beat-title" :style="{ color: getContrastColor(beatType?.color) }">
@@ -67,7 +67,10 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 import type { Beat, BeatType } from '@/domain/entities'
+
+const { t } = useI18n()
 
 const props = defineProps<{
   beat: Beat
