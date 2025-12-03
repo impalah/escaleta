@@ -181,6 +181,7 @@ const isDraggingBeat = ref(false)
 const draggingBeatId = ref<string | null>(null)
 const beatDragStartPosition = ref({ x: 0, y: 0 })
 const isDragToDisconnect = ref(false) // Shift key state
+const draggingGroupBeats = ref<Set<string>>(new Set()) // IDs of all beats in dragging group
 
 // Magnet zones state
 const magnetZones = ref<Map<string, 'top' | 'bottom'>>(new Map())
@@ -438,6 +439,31 @@ function handleBeatDragStart(beatId: string, isShiftKey: boolean) {
   // Si es Shift+Drag, desconectar el beat primero
   if (isShiftKey && (beat.prevBeatId || beat.nextBeatId)) {
     project.value = projectService.disconnectBeat(project.value, beatId)
+    draggingGroupBeats.value = new Set([beatId])
+  } else if (beat.prevBeatId || beat.nextBeatId) {
+    // Identificar todos los beats del grupo conectado
+    const groupBeats = new Set<string>()
+    groupBeats.add(beatId)
+    
+    // Traverse backward
+    let current = beat
+    while (current.prevBeatId) {
+      groupBeats.add(current.prevBeatId)
+      current = project.value.beats.find(b => b.id === current!.prevBeatId)!
+      if (!current) break
+    }
+    
+    // Traverse forward
+    current = beat
+    while (current.nextBeatId) {
+      groupBeats.add(current.nextBeatId)
+      current = project.value.beats.find(b => b.id === current!.nextBeatId)!
+      if (!current) break
+    }
+    
+    draggingGroupBeats.value = groupBeats
+  } else {
+    draggingGroupBeats.value = new Set([beatId])
   }
   
   // Guardar posición inicial del beat principal
@@ -472,21 +498,52 @@ function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
     }
   }
   
-  // Detectar zonas magnéticas solo si es drag individual (Shift o beat solitario)
-  if (isDragToDisconnect.value || (!beat.prevBeatId && !beat.nextBeatId)) {
-    const newX = beatDragStartPosition.value.x + deltaXScaled
-    const newY = beatDragStartPosition.value.y + deltaYScaled
-    detectMagnetZones(beatId, newX, newY)
-  }
+  // Detectar zonas magnéticas siempre (ahora soporta grupos)
+  const newX = beatDragStartPosition.value.x + deltaXScaled
+  const newY = beatDragStartPosition.value.y + deltaYScaled
+  detectMagnetZones(newX, newY)
 }
 
-function detectMagnetZones(draggingBeatId: string, beatX: number, beatY: number) {
-  const newMagnetZones = new Map<string, 'top' | 'bottom'>()
-  const BEAT_WIDTH = 200 // BeatCard width
+// Helper function to get beats in a group in the correct order (first to last)
+function getOrderedGroupBeats(draggedBeatId: string): string[] {
+  if (draggingGroupBeats.value.size === 1) {
+    return [draggedBeatId]
+  }
   
-  // Check overlap with each beat (except the dragging beat itself)
+  const orderedBeats: string[] = []
+  const beats = project.value.beats
+  
+  // Find the first beat in the chain (no prevBeatId)
+  let firstBeat = beats.find(b => draggingGroupBeats.value.has(b.id) && !b.prevBeatId)
+  if (!firstBeat) {
+    // Fallback: use dragged beat as first
+    firstBeat = beats.find(b => b.id === draggedBeatId)
+  }
+  
+  if (!firstBeat) return [draggedBeatId]
+  
+  // Traverse forward to build ordered array
+  let current = firstBeat
+  orderedBeats.push(current.id)
+  
+  while (current.nextBeatId && draggingGroupBeats.value.has(current.nextBeatId)) {
+    const next = beats.find(b => b.id === current.nextBeatId)
+    if (!next) break
+    orderedBeats.push(next.id)
+    current = next
+  }
+  
+  return orderedBeats
+}
+
+function detectMagnetZones(beatX: number, beatY: number) {
+  const newMagnetZones = new Map<string, 'top' | 'bottom'>()
+  const BEAT_WIDTH = 400 // BeatCard width (actualizado a 400px)
+  
+  // Check overlap with each beat (except the dragging group)
   for (const targetBeat of project.value.beats) {
-    if (targetBeat.id === draggingBeatId) continue
+    // Skip beats that are part of the dragging group
+    if (draggingGroupBeats.value.has(targetBeat.id)) continue
     
     // Calculate bounding boxes
     const draggedLeft = beatX
@@ -528,15 +585,24 @@ function detectMagnetZones(draggingBeatId: string, beatX: number, beatY: number)
 function handleBeatDragEnd(beatId: string) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
-  // Check if dragged beat landed on a magnet zone
+  // Check if dragged beat/group landed on a magnet zone
   let connectionMade = false
   for (const [targetBeatId, zone] of magnetZones.value.entries()) {
-    if (zone === 'top') {
-      project.value = projectService.connectToTop(project.value, beatId, targetBeatId)
+    // Si se está arrastrando un grupo de beats conectados
+    if (draggingGroupBeats.value.size > 1) {
+      // Obtener el orden correcto de los beats en el grupo
+      const groupBeatsArray = getOrderedGroupBeats(beatId)
+      project.value = projectService.insertGroupAt(project.value, groupBeatsArray, targetBeatId, zone)
       connectionMade = true
-    } else if (zone === 'bottom') {
-      project.value = projectService.connectToBottom(project.value, beatId, targetBeatId)
-      connectionMade = true
+    } else {
+      // Comportamiento original para beats individuales
+      if (zone === 'top') {
+        project.value = projectService.connectToTop(project.value, beatId, targetBeatId)
+        connectionMade = true
+      } else if (zone === 'bottom') {
+        project.value = projectService.connectToBottom(project.value, beatId, targetBeatId)
+        connectionMade = true
+      }
     }
     
     // Only connect to first magnet zone found
@@ -546,6 +612,7 @@ function handleBeatDragEnd(beatId: string) {
   // Clear drag state
   isDraggingBeat.value = false
   draggingBeatId.value = null
+  draggingGroupBeats.value.clear()
   magnetZones.value.clear()
   
   // Save project with updated position and connections

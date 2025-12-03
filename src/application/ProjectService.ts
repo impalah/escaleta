@@ -393,6 +393,175 @@ export class ProjectService {
   }
 
   /**
+   * Insert a group of connected beats at a specific position
+   * @param groupBeats - Array of beat IDs in the group (in order from first to last)
+   * @param targetBeatId - Beat where the group should be inserted
+   * @param insertPosition - 'top' to insert before target, 'bottom' to insert after target
+   */
+  insertGroupAt(project: Project, groupBeats: string[], targetBeatId: string, insertPosition: 'top' | 'bottom'): Project {
+    if (groupBeats.length === 0) return project
+    
+    const firstBeatId = groupBeats[0]
+    const lastBeatId = groupBeats[groupBeats.length - 1]
+    
+    const targetBeat = project.beats.find(b => b.id === targetBeatId)
+    if (!targetBeat) return project
+    
+    // Disconnect the entire group from its current position
+    let updatedProject = { ...project }
+    
+    // Disconnect group from neighbors
+    const firstBeat = updatedProject.beats.find(b => b.id === firstBeatId)
+    const lastBeat = updatedProject.beats.find(b => b.id === lastBeatId)
+    
+    if (firstBeat?.prevBeatId) {
+      const prevBeat = updatedProject.beats.find(b => b.id === firstBeat.prevBeatId)
+      if (prevBeat) {
+        updatedProject.beats = updatedProject.beats.map(b => 
+          b.id === prevBeat.id ? { ...b, nextBeatId: lastBeat?.nextBeatId, updatedAt: new Date().toISOString() } : b
+        )
+      }
+    }
+    
+    if (lastBeat?.nextBeatId) {
+      const nextBeat = updatedProject.beats.find(b => b.id === lastBeat.nextBeatId)
+      if (nextBeat) {
+        updatedProject.beats = updatedProject.beats.map(b => 
+          b.id === nextBeat.id ? { ...b, prevBeatId: firstBeat?.prevBeatId, updatedAt: new Date().toISOString() } : b
+        )
+      }
+    }
+    
+    // Update first and last beats of the group to disconnect them
+    updatedProject.beats = updatedProject.beats.map(b => {
+      if (b.id === firstBeatId) {
+        return { ...b, prevBeatId: undefined, updatedAt: new Date().toISOString() }
+      }
+      if (b.id === lastBeatId) {
+        return { ...b, nextBeatId: undefined, updatedAt: new Date().toISOString() }
+      }
+      return b
+    })
+    
+    // Now insert the group at the target position
+    const updatedTargetBeat = updatedProject.beats.find(b => b.id === targetBeatId)
+    if (!updatedTargetBeat) return project
+    
+    if (insertPosition === 'top') {
+      // Insert before target
+      if (updatedTargetBeat.prevBeatId) {
+        // Target has a previous beat, insert between them
+        const prevBeatId = updatedTargetBeat.prevBeatId
+        
+        updatedProject.beats = updatedProject.beats.map(b => {
+          if (b.id === prevBeatId) {
+            return { ...b, nextBeatId: firstBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === firstBeatId) {
+            return { ...b, prevBeatId: prevBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === lastBeatId) {
+            return { ...b, nextBeatId: targetBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === targetBeatId) {
+            return { ...b, prevBeatId: lastBeatId, updatedAt: new Date().toISOString() }
+          }
+          return b
+        })
+      } else {
+        // Target has no previous beat, group becomes the head
+        updatedProject.beats = updatedProject.beats.map(b => {
+          if (b.id === lastBeatId) {
+            return { ...b, nextBeatId: targetBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === targetBeatId) {
+            return { ...b, prevBeatId: lastBeatId, updatedAt: new Date().toISOString() }
+          }
+          return b
+        })
+      }
+    } else {
+      // Insert after target
+      if (updatedTargetBeat.nextBeatId) {
+        // Target has a next beat, insert between them
+        const nextBeatId = updatedTargetBeat.nextBeatId
+        
+        updatedProject.beats = updatedProject.beats.map(b => {
+          if (b.id === targetBeatId) {
+            return { ...b, nextBeatId: firstBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === firstBeatId) {
+            return { ...b, prevBeatId: targetBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === lastBeatId) {
+            return { ...b, nextBeatId: nextBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === nextBeatId) {
+            return { ...b, prevBeatId: lastBeatId, updatedAt: new Date().toISOString() }
+          }
+          return b
+        })
+      } else {
+        // Target has no next beat, group becomes the tail
+        updatedProject.beats = updatedProject.beats.map(b => {
+          if (b.id === targetBeatId) {
+            return { ...b, nextBeatId: firstBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === firstBeatId) {
+            return { ...b, prevBeatId: targetBeatId, updatedAt: new Date().toISOString() }
+          }
+          return b
+        })
+      }
+    }
+    
+    // Reposition all beats in the chain to align them properly
+    return this.repositionChain(updatedProject)
+  }
+  
+  /**
+   * Reposition all beats in all chains to maintain proper vertical alignment
+   */
+  private repositionChain(project: Project): Project {
+    const GAP = 10
+    const processedBeats = new Set<string>()
+    
+    const beats = [...project.beats]
+    
+    // Find all chain heads (beats with no prevBeatId)
+    const chainHeads = beats.filter(b => !b.prevBeatId)
+    
+    for (const head of chainHeads) {
+      let currentBeat = head
+      let currentY = head.position.y
+      const chainX = head.position.x
+      
+      processedBeats.add(currentBeat.id)
+      
+      while (currentBeat.nextBeatId) {
+        const nextBeat = beats.find(b => b.id === currentBeat.nextBeatId)
+        if (!nextBeat || processedBeats.has(nextBeat.id)) break
+        
+        // Position next beat below current
+        const currentHeight = this.getBeatHeight(currentBeat.id)
+        currentY = currentY + currentHeight + GAP
+        
+        nextBeat.position = { x: chainX, y: currentY }
+        nextBeat.updatedAt = new Date().toISOString()
+        
+        processedBeats.add(nextBeat.id)
+        currentBeat = nextBeat
+      }
+    }
+    
+    return {
+      ...project,
+      beats,
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
    * Connect a beat to the bottom of another beat (beat becomes nextBeat of target)
    */
   connectToBottom(project: Project, beatId: string, targetBeatId: string): Project {
