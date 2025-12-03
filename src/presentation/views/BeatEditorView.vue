@@ -82,6 +82,10 @@
       @mousemove="handleCanvasMouseMove"
       @mouseup="handleCanvasMouseUp"
       @mouseleave="handleCanvasMouseUp"
+      @touchstart="handleCanvasTouchStart"
+      @touchmove="handleCanvasTouchMove"
+      @touchend="handleCanvasTouchEnd"
+      @touchcancel="handleCanvasTouchEnd"
       :style="{ cursor: isPanning ? 'grabbing' : 'grab' }"
     >
       <div
@@ -170,6 +174,7 @@ const savedPanOffset = localStorage.getItem(PAN_OFFSET_KEY)
 const panOffset = ref(savedPanOffset ? JSON.parse(savedPanOffset) : { x: 0, y: 0 })
 const panStart = ref({ x: 0, y: 0 })
 const lastPanOffset = ref({ x: 0, y: 0 })
+const canvasTouchIdentifier = ref<number | null>(null)
 
 // Beat drag state
 const isDraggingBeat = ref(false)
@@ -324,6 +329,55 @@ function handleCanvasMouseMove(event: MouseEvent) {
 
 function handleCanvasMouseUp() {
   isPanning.value = false
+}
+
+// Touch event handlers for canvas panning on mobile
+function handleCanvasTouchStart(event: TouchEvent) {
+  // Only start panning if touching the canvas background (not a beat card)
+  const target = event.target as HTMLElement
+  if (target.closest('.beat-card-wrapper')) {
+    // Let beat handle its own touch events
+    return
+  }
+  
+  const touch = event.touches[0]
+  if (!touch) return
+  
+  canvasTouchIdentifier.value = touch.identifier
+  isPanning.value = true
+  panStart.value = { x: touch.clientX, y: touch.clientY }
+  lastPanOffset.value = { ...panOffset.value }
+}
+
+function handleCanvasTouchMove(event: TouchEvent) {
+  if (!isPanning.value || canvasTouchIdentifier.value === null) return
+  
+  // Prevent default to avoid scrolling
+  event.preventDefault()
+  
+  // Find the touch that matches our identifier
+  const touch = Array.from(event.touches).find(t => t.identifier === canvasTouchIdentifier.value)
+  if (!touch) return
+  
+  const deltaX = touch.clientX - panStart.value.x
+  const deltaY = touch.clientY - panStart.value.y
+  
+  panOffset.value = {
+    x: lastPanOffset.value.x + deltaX,
+    y: lastPanOffset.value.y + deltaY
+  }
+}
+
+function handleCanvasTouchEnd(event: TouchEvent) {
+  if (!isPanning.value || canvasTouchIdentifier.value === null) return
+  
+  // Check if our touch ended
+  const touchEnded = !Array.from(event.touches).some(t => t.identifier === canvasTouchIdentifier.value)
+  
+  if (touchEnded) {
+    isPanning.value = false
+    canvasTouchIdentifier.value = null
+  }
 }
 
 // Move entire connected chain of beats

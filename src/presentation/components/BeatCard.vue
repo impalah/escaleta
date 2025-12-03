@@ -23,6 +23,7 @@
       elevation="4"
       @click="handleClick"
       @mousedown="handleMouseDown"
+      @touchstart="handleTouchStart"
     >
       <!-- Zona de imán superior -->
       <div class="magnet-zone magnet-zone-top"></div>
@@ -85,6 +86,7 @@ const emit = defineEmits<{
 const isDragging = ref(false)
 const dragStart = ref({ x: 0, y: 0 })
 const hasMoved = ref(false)
+const touchIdentifier = ref<number | null>(null)
 
 function handleMouseDown(event: MouseEvent) {
   // Prevent triggering click on canvas pan
@@ -132,6 +134,72 @@ function handleMouseUp() {
     // Remove global listeners
     document.removeEventListener('mousemove', handleMouseMove)
     document.removeEventListener('mouseup', handleMouseUp)
+  }
+}
+
+// Touch event handlers for mobile support
+function handleTouchStart(event: TouchEvent) {
+  // Prevent triggering click on canvas pan
+  event.stopPropagation()
+  
+  // Prevent drag if touching disconnect button
+  if ((event.target as HTMLElement).closest('.disconnect-btn')) {
+    return
+  }
+  
+  const touch = event.touches[0]
+  if (!touch) return
+  
+  touchIdentifier.value = touch.identifier
+  isDragging.value = true
+  hasMoved.value = false
+  dragStart.value = { x: touch.clientX, y: touch.clientY }
+  
+  // Check if shift key equivalent (could use long press in future)
+  emit('dragstart', props.beat.id, false)
+  
+  // Add global listeners for touch drag
+  document.addEventListener('touchmove', handleTouchMove, { passive: false })
+  document.addEventListener('touchend', handleTouchEnd)
+  document.addEventListener('touchcancel', handleTouchEnd)
+}
+
+function handleTouchMove(event: TouchEvent) {
+  if (!isDragging.value || touchIdentifier.value === null) return
+  
+  // Prevent default to avoid scrolling
+  event.preventDefault()
+  
+  // Find the touch that matches our identifier
+  const touch = Array.from(event.touches).find(t => t.identifier === touchIdentifier.value)
+  if (!touch) return
+  
+  const deltaX = touch.clientX - dragStart.value.x
+  const deltaY = touch.clientY - dragStart.value.y
+  
+  // Mark as moved if dragged more than 5px (to distinguish from tap)
+  if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
+    hasMoved.value = true
+  }
+  
+  emit('dragmove', props.beat.id, deltaX, deltaY)
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  if (!isDragging.value || touchIdentifier.value === null) return
+  
+  // Check if our touch ended
+  const touchEnded = !Array.from(event.touches).some(t => t.identifier === touchIdentifier.value)
+  
+  if (touchEnded) {
+    isDragging.value = false
+    touchIdentifier.value = null
+    emit('dragend', props.beat.id)
+    
+    // Remove global listeners
+    document.removeEventListener('touchmove', handleTouchMove)
+    document.removeEventListener('touchend', handleTouchEnd)
+    document.removeEventListener('touchcancel', handleTouchEnd)
   }
 }
 
