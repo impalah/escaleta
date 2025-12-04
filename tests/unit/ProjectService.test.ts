@@ -508,4 +508,104 @@ describe('ProjectService', () => {
       expect(beat4Updated?.position.y).toBeGreaterThan(originalBeat4Y)
     })
   })
+
+  describe('BeatGroup operations', () => {
+    it('should create a beat group', () => {
+      const project = service.createExampleProject()
+      
+      const group = service.createBeatGroup(project, 'Test Group')
+      const updated = service.addBeatGroup(project, group)
+      
+      expect(updated.beatGroups.length).toBe(1)
+      expect(updated.beatGroups[0].name).toBe('Test Group')
+      expect(updated.beatGroups[0].description).toBe('')
+      expect(updated.beatGroups[0].beatIds).toEqual([])
+    })
+
+    it('should drop beat into group and position it correctly', () => {
+      const project = service.createExampleProject()
+      const beat = project.beats[0]
+      
+      // Create a group at position (100, 200)
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
+      const groupId = updated.beatGroups[0].id
+      
+      // Drop beat into group
+      updated = service.dropBeatIntoGroup(updated, beat.id, groupId)
+      
+      expect(updated.beatGroups[0].beatIds).toContain(beat.id)
+      
+      // Beat should be positioned with group's X coordinate
+      const updatedBeat = updated.beats.find(b => b.id === beat.id)
+      expect(updatedBeat?.position.x).toBe(100) // Group X
+      expect(updatedBeat?.position.y).toBe(260) // GROUP_HEIGHT (50) + GAP (10) + groupY (200)
+    })
+
+    it('should remove beat from group and reposition remaining beats', () => {
+      const project = service.createExampleProject()
+      const [beat1, beat2, beat3] = project.beats
+      
+      // Create group and add beats
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
+      const groupId = updated.beatGroups[0].id
+      
+      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId)
+      
+      expect(updated.beatGroups[0].beatIds.length).toBe(3)
+      
+      // Remove middle beat
+      updated = service.removeBeatFromGroup(updated, beat2.id, groupId)
+      
+      expect(updated.beatGroups[0].beatIds.length).toBe(2)
+      expect(updated.beatGroups[0].beatIds).not.toContain(beat2.id)
+      
+      // Remaining beats should be repositioned
+      const updatedBeat3 = updated.beats.find(b => b.id === beat3.id)
+      // beat3 should now be in position 1 (after beat1) instead of position 2
+      expect(updatedBeat3?.position.y).toBe(350) // 200 + 50 + 10 + (1 * (80 + 10))
+    })
+
+    it('should get group for beat', () => {
+      const project = service.createExampleProject()
+      const beat = project.beats[0]
+      
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, group)
+      const groupId = updated.beatGroups[0].id
+      updated = service.dropBeatIntoGroup(updated, beat.id, groupId)
+      
+      const foundGroup = service.getGroupForBeat(updated, beat.id)
+      
+      expect(foundGroup).toBeDefined()
+      expect(foundGroup?.id).toBe(groupId)
+    })
+
+    it('should delete beat group', () => {
+      const project = service.createExampleProject()
+      
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, group)
+      const groupId = updated.beatGroups[0].id
+      
+      updated = service.deleteBeatGroup(updated, groupId)
+      
+      expect(updated.beatGroups.length).toBe(0)
+    })
+
+    it('should update beat group', () => {
+      const project = service.createExampleProject()
+      
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, group)
+      const groupId = updated.beatGroups[0].id
+      
+      updated = service.updateBeatGroup(updated, groupId, { name: 'Updated Name' })
+      
+      expect(updated.beatGroups[0].name).toBe('Updated Name')
+    })
+  })
 })

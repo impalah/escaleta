@@ -6,17 +6,12 @@
     left: `${beat.position.x}px`,
     top: `${beat.position.y}px`
   }">
-    <!-- Conexión visual superior (si hay prevBeat) -->
-    <div v-if="beat.prevBeatId" class="connection-gap connection-top"></div>
-    
     <!-- Beat Card -->
     <v-card
       data-testid="beat-card"
       class="beat-card"
       :class="{ 
-        'is-dragging': isDragging,
-        'magnet-top-active': magnetZone === 'top',
-        'magnet-bottom-active': magnetZone === 'bottom'
+        'is-dragging': isDragging
       }"
       :style="{
         backgroundColor: beatType?.color || '#9E9E9E'
@@ -26,9 +21,6 @@
       @mousedown="handleMouseDown"
       @touchstart="handleTouchStart"
     >
-      <!-- Zona de imán superior -->
-      <div class="magnet-zone magnet-zone-top"></div>
-      
       <v-card-text class="pa-3">
         <div class="d-flex align-center mb-2">
           <v-icon :color="getContrastColor(beatType?.color)" size="small" class="mr-2">
@@ -37,32 +29,23 @@
           <span class="text-caption" :style="{ color: getContrastColor(beatType?.color) }">
             {{ beatType?.name || 'Unknown' }}
           </span>
-          
-          <!-- Disconnect button (only for connected beats) -->
-          <v-btn
-            v-if="beat.prevBeatId || beat.nextBeatId"
-            icon
-            size="x-small"
-            class="ml-auto disconnect-btn"
-            :color="getContrastColor(beatType?.color)"
-            @click.stop="handleDisconnect"
-            aria-label="Disconnect beat"
+          <v-spacer />
+          <button
+            class="delete-btn"
+            @click.stop="handleDelete"
+            @mousedown.stop
+            @touchstart.stop
+            aria-label="Delete beat"
+            title="Delete beat"
           >
-            <v-icon size="small">mdi-link-variant-off</v-icon>
-            <v-tooltip activator="parent" location="top">{{ t('beatCard.disconnect') }}</v-tooltip>
-          </v-btn>
+            <span class="delete-icon">×</span>
+          </button>
         </div>
         <div class="beat-title" :style="{ color: getContrastColor(beatType?.color) }">
           {{ beat.title }}
         </div>
       </v-card-text>
-      
-      <!-- Zona de imán inferior -->
-      <div class="magnet-zone magnet-zone-bottom"></div>
     </v-card>
-    
-    <!-- Conexión visual inferior (si hay nextBeat) -->
-    <div v-if="beat.nextBeatId" class="connection-gap connection-bottom"></div>
   </div>
 </template>
 
@@ -76,16 +59,15 @@ const { t } = useI18n()
 const props = defineProps<{
   beat: Beat
   beatType: BeatType | undefined
-  magnetZone?: 'top' | 'bottom' | null // Zona de imán activa
   isGroupDragging?: boolean // True when entire group is being dragged
 }>()
 
 const emit = defineEmits<{
   click: []
-  dragstart: [beatId: string, isShiftKey: boolean]
+  dragstart: [beatId: string]
   dragmove: [beatId: string, deltaX: number, deltaY: number]
   dragend: [beatId: string]
-  disconnect: [beatId: string]
+  delete: [beatId: string]
 }>()
 
 const isDragging = ref(false)
@@ -93,33 +75,22 @@ const dragStarted = ref(false) // Track if drag actually started (after threshol
 const dragStart = ref({ x: 0, y: 0 })
 const hasMoved = ref(false)
 const touchIdentifier = ref<number | null>(null)
-const initialShiftKey = ref(false) // Store initial shift key state
 const DRAG_THRESHOLD = 10 // pixels to move before starting drag
 
 function handleMouseDown(event: MouseEvent) {
   // Prevent triggering click on canvas pan
   event.stopPropagation()
   
-  // Prevent drag if clicking on disconnect button
-  if ((event.target as HTMLElement).closest('.disconnect-btn')) {
-    return
-  }
-  
   isDragging.value = true
   dragStarted.value = false
   hasMoved.value = false
   dragStart.value = { x: event.clientX, y: event.clientY }
-  initialShiftKey.value = event.shiftKey // Store initial shift key state
   
   // Don't emit dragstart yet - wait for threshold
   
   // Add global listeners for drag
   document.addEventListener('mousemove', handleMouseMove)
   document.addEventListener('mouseup', handleMouseUp)
-}
-
-function handleDisconnect() {
-  emit('disconnect', props.beat.id)
 }
 
 function handleMouseMove(event: MouseEvent) {
@@ -132,8 +103,7 @@ function handleMouseMove(event: MouseEvent) {
   // Check if we've moved past the threshold
   if (!dragStarted.value && distance >= DRAG_THRESHOLD) {
     dragStarted.value = true
-    // Use the initial shift key state, not the current one
-    emit('dragstart', props.beat.id, initialShiftKey.value)
+    emit('dragstart', props.beat.id)
   }
   
   // Only emit dragmove if drag has actually started
@@ -163,11 +133,6 @@ function handleMouseUp() {
 function handleTouchStart(event: TouchEvent) {
   // Prevent triggering click on canvas pan
   event.stopPropagation()
-  
-  // Prevent drag if touching disconnect button
-  if ((event.target as HTMLElement).closest('.disconnect-btn')) {
-    return
-  }
   
   const touch = event.touches[0]
   if (!touch) return
@@ -200,7 +165,7 @@ function handleTouchMove(event: TouchEvent) {
   // Check if we've moved past the threshold
   if (!dragStarted.value && distance >= DRAG_THRESHOLD) {
     dragStarted.value = true
-    emit('dragstart', props.beat.id, false)
+    emit('dragstart', props.beat.id)
   }
   
   // Only prevent default and emit dragmove if drag has actually started
@@ -241,6 +206,11 @@ function handleClick() {
     emit('click')
   }
   hasMoved.value = false
+}
+
+function handleDelete(event: Event) {
+  event.stopPropagation()
+  emit('delete', props.beat.id)
 }
 
 /**
@@ -294,79 +264,6 @@ function getContrastColor(hexColor: string | undefined): string {
   z-index: 1000;
 }
 
-/* Zonas de imán */
-.magnet-zone {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 40px; /* Mitad de la altura del beat (80px / 2) */
-  pointer-events: none;
-  transition: background-color 0.2s, border 0.2s;
-}
-
-.magnet-zone-top {
-  top: 0;
-  border-top: 2px solid transparent;
-}
-
-.magnet-zone-bottom {
-  bottom: 0;
-  border-bottom: 2px solid transparent;
-}
-
-/* Zona de imán activa (cuando otro beat pasa por encima) */
-.beat-card.magnet-top-active .magnet-zone-top {
-  background-color: rgba(76, 175, 80, 0.15);
-}
-
-.beat-card.magnet-bottom-active .magnet-zone-bottom {
-  background-color: rgba(33, 150, 243, 0.15);
-}
-
-/* Sombra degradada bajo el beat cuando zona de imán activa */
-.beat-card.magnet-top-active {
-  box-shadow: 
-    0 -30px 40px -10px rgba(76, 175, 80, 0.6),
-    0 -20px 30px -8px rgba(76, 175, 80, 0.4),
-    0 -10px 20px -5px rgba(76, 175, 80, 0.2),
-    0 8px 16px rgba(0, 0, 0, 0.2) !important;
-}
-
-.beat-card.magnet-bottom-active {
-  box-shadow: 
-    0 30px 40px -10px rgba(33, 150, 243, 0.6),
-    0 20px 30px -8px rgba(33, 150, 243, 0.4),
-    0 10px 20px -5px rgba(33, 150, 243, 0.2),
-    0 -8px 16px rgba(0, 0, 0, 0.2) !important;
-}
-
-/* Conexión visual (espacio sombreado entre beats conectados) */
-.connection-gap {
-  width: 100%;
-  height: 10px;
-  background: repeating-linear-gradient(
-    45deg,
-    rgba(0, 0, 0, 0.1),
-    rgba(0, 0, 0, 0.1) 5px,
-    rgba(0, 0, 0, 0.05) 5px,
-    rgba(0, 0, 0, 0.05) 10px
-  );
-  border-left: 2px dashed rgba(0, 0, 0, 0.2);
-  border-right: 2px dashed rgba(0, 0, 0, 0.2);
-}
-
-.connection-top {
-  position: absolute;
-  top: -10px;
-  left: 0;
-}
-
-.connection-bottom {
-  position: absolute;
-  bottom: -10px;
-  left: 0;
-}
-
 .beat-title {
   font-weight: 500;
   font-size: 0.9rem;
@@ -378,21 +275,34 @@ function getContrastColor(hexColor: string | undefined): string {
   -webkit-box-orient: vertical;
 }
 
-/* Disconnect button */
-.disconnect-btn {
-  opacity: 0.7;
-  transition: opacity 0.2s, transform 0.2s;
+.delete-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 50%;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.2s ease;
+  opacity: 0;
 }
 
-.disconnect-btn:hover {
+.beat-card:hover .delete-btn {
   opacity: 1;
+}
+
+.delete-btn:hover {
+  background: rgba(239, 68, 68, 0.9);
   transform: scale(1.1);
 }
 
-/* On mobile/tablet, always show disconnect button */
-@media (hover: none) {
-  .disconnect-btn {
-    opacity: 0.9;
-  }
+.delete-icon {
+  font-size: 18px;
+  font-weight: bold;
+  color: white;
+  line-height: 1;
 }
 </style>

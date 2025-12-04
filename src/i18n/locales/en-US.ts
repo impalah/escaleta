@@ -71,8 +71,8 @@ export default {
     updatedAt: 'Last Updated'
   },
   beatCard: {
-    disconnect: 'Disconnect (Shift + Drag)',
-    delete: 'Delete Beat'
+    delete: 'Delete Beat',
+    deleteConfirm: 'Are you sure you want to delete the beat "{title}"?'
   },
   groupProperties: {
     name: 'Group Name',
@@ -84,7 +84,8 @@ export default {
     beats: 'Beats in Group',
     createdAt: 'Created At',
     updatedAt: 'Last Updated',
-    deleteConfirmation: 'Are you sure you want to delete the group "{name}"? This will not delete the beats inside.'
+    deleteConfirmation: 'Are you sure you want to delete the group "{name}"? This will not delete the beats inside.',
+    deleteConfirm: 'Are you sure you want to delete the group "{name}"?'
   },
   beatGrid: {
     order: 'Order',

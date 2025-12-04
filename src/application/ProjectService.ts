@@ -796,8 +796,8 @@ export class ProjectService {
   }
 
   /**
-   * Add a beat (and its connected chain) to a group
-   * Positions beats sequentially below the group header
+   * Add a beat to a group and position it sequentially
+   * Simplified: Only adds the single beat, not its chain
    */
   dropBeatIntoGroup(project: Project, beatId: string, groupId: string): Project {
     const GAP = 10
@@ -807,47 +807,31 @@ export class ProjectService {
     const group = project.beatGroups.find(g => g.id === groupId)
     if (!group) return project
 
-    // Get all beats in the dragged chain
-    const chainIds = this.getConnectedChain(project, beatId)
+    // Add ONLY this beat to group (avoid duplicates)
+    if (group.beatIds.includes(beatId)) {
+      return project // Beat already in group
+    }
     
-    // Add beats to group (avoid duplicates)
-    const updatedBeatIds = [...new Set([...group.beatIds, ...chainIds])]
+    const updatedBeatIds = [...group.beatIds, beatId]
     
-    // Position beats sequentially
+    // Position ALL beats in the group sequentially - CRITICAL: X must ALWAYS match group header X
     let updatedBeats = project.beats.map(beat => {
-      if (!chainIds.includes(beat.id)) return beat
-      
-      // Find the position for this beat in the group
       const indexInGroup = updatedBeatIds.indexOf(beat.id)
       
-      if (indexInGroup === 0) {
-        // First beat: position below group header
-        return {
-          ...beat,
-          position: {
-            x: group.position.x,
-            y: group.position.y + GROUP_HEIGHT + GAP
-          },
-          updatedAt: new Date().toISOString()
-        }
-      } else {
-        // Subsequent beats: position below previous beat
-        const prevBeatId = updatedBeatIds[indexInGroup - 1]
-        const prevBeat = project.beats.find(b => b.id === prevBeatId)
-        
-        if (prevBeat) {
-          return {
-            ...beat,
-            position: {
-              x: prevBeat.position.x,
-              y: prevBeat.position.y + BEAT_HEIGHT + GAP
-            },
-            updatedAt: new Date().toISOString()
-          }
-        }
-      }
+      // Only update beats that are in this group
+      if (indexInGroup === -1) return beat
       
-      return beat
+      // Calculate Y position based on index in group
+      const yPosition = group.position.y + GROUP_HEIGHT + GAP + (indexInGroup * (BEAT_HEIGHT + GAP))
+      
+      return {
+        ...beat,
+        position: {
+          x: group.position.x, // ALWAYS use group X, never previous beat X
+          y: yPosition
+        },
+        updatedAt: new Date().toISOString()
+      }
     })
     
     // Update project with repositioned beats and updated group
@@ -911,46 +895,19 @@ export class ProjectService {
   }
 
   /**
-   * Remove a beat (and potentially reorganize its chain) from a group
-   * Handles drag to extract a beat from a group and repositions remaining beats
+   * Remove a beat from a group and reposition remaining beats
+   * Simplified: Only removes the single beat, not its chain
    */
   removeBeatFromGroup(project: Project, beatId: string, groupId: string): Project {
-    const GAP = 10
-    const GROUP_HEIGHT = 50
-    
     const group = project.beatGroups.find(g => g.id === groupId)
     const beat = project.beats.find(b => b.id === beatId)
     
     if (!group || !beat) return project
 
-    // Get the index of the beat being removed
-    const removedBeatIndex = group.beatIds.indexOf(beatId)
-
-    // Get the chain of the beat being removed
-    const removedChain = this.getConnectedChain(project, beatId)
+    // Remove ONLY this beat from the group (not its chain)
+    const remainingBeatIds = group.beatIds.filter(id => id !== beatId)
     
-    // Remove all beats in the removed chain from the group
-    const remainingBeatIds = group.beatIds.filter(id => !removedChain.includes(id))
-    
-    // If the removed beat has prev and next, connect them
-    if (beat.prevBeatId && beat.nextBeatId && !removedChain.includes(beat.prevBeatId)) {
-      // Reconnect the gap left by removing this beat
-      project = {
-        ...project,
-        beats: project.beats.map(b => {
-          if (b.id === beat.prevBeatId) {
-            return { ...b, nextBeatId: beat.nextBeatId, updatedAt: new Date().toISOString() }
-          }
-          if (b.id === beat.nextBeatId) {
-            return { ...b, prevBeatId: beat.prevBeatId, updatedAt: new Date().toISOString() }
-          }
-          return b
-        })
-      }
-    }
-
     // Reposition remaining beats to fill the gap
-    // All remaining beats need to be repositioned to their correct sequential positions
     project = {
       ...project,
       beats: project.beats.map(b => {

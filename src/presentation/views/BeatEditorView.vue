@@ -149,13 +149,12 @@
           :key="beat.id"
           :beat="beat"
           :beat-type="getBeatType(beat.typeId)"
-          :magnet-zone="magnetZones.get(beat.id) || null"
           :is-group-dragging="isDraggingGroup"
           @click="selectBeat(beat)"
           @dragstart="handleBeatDragStart"
           @dragmove="handleBeatDragMove"
           @dragend="handleBeatDragEnd"
-          @disconnect="handleBeatDisconnect"
+          @delete="handleDeleteBeat"
         />
       </div>
     </v-sheet>
@@ -235,8 +234,6 @@ const canvasTouchIdentifier = ref<number | null>(null)
 const isDraggingBeat = ref(false)
 const draggingBeatId = ref<string | null>(null)
 const beatDragStartPosition = ref({ x: 0, y: 0 })
-const isDragToDisconnect = ref(false) // Shift key state
-const draggingGroupBeats = ref<Set<string>>(new Set()) // IDs of all beats in dragging group
 
 // Group drag state
 const isDraggingGroup = ref(false)
@@ -246,12 +243,8 @@ const groupDragStartPosition = ref({ x: 0, y: 0 })
 // Beat-to-Group hover state (for highlighting groups during beat drag)
 const hoveredGroupId = ref<string | null>(null)
 
-// Magnet zones state
-const magnetZones = ref<Map<string, 'top' | 'bottom'>>(new Map())
-
-// Constants for magnet zone detection
+// Constants
 const BEAT_HEIGHT = 80 // Must match constant in ProjectService
-const MAGNET_OVERLAP_THRESHOLD = 0.5 // 50% overlap required
 
 // View mode: 'canvas' or 'grid', persisted in localStorage
 const VIEW_MODE_KEY = 'escaleta-view-mode'
@@ -476,103 +469,23 @@ function handleCanvasTouchEnd(event: TouchEvent) {
   }
 }
 
-// Move entire connected chain of beats
-function moveConnectedChain(beatId: string, deltaX: number, deltaY: number) {
-  const beat = project.value.beats.find(b => b.id === beatId)
-  if (!beat) return
-  
-  const beatsToMove = new Set<string>()
-  beatsToMove.add(beatId)
-  
-  // Traverse backward to find all previous beats
-  let current = beat
-  while (current.prevBeatId) {
-    beatsToMove.add(current.prevBeatId)
-    current = project.value.beats.find(b => b.id === current!.prevBeatId)!
-    if (!current) break
-  }
-  
-  // Traverse forward to find all next beats
-  current = beat
-  while (current.nextBeatId) {
-    beatsToMove.add(current.nextBeatId)
-    current = project.value.beats.find(b => b.id === current!.nextBeatId)!
-    if (!current) break
-  }
-  
-  // Move all beats in the chain
-  project.value.beats = project.value.beats.map(b => {
-    if (beatsToMove.has(b.id)) {
-      // Calculate offset from dragged beat
-      const offset = b.id === beatId ? { x: 0, y: 0 } : {
-        x: b.position.x - (project.value.beats.find(bt => bt.id === beatId)?.position.x || 0),
-        y: b.position.y - (project.value.beats.find(bt => bt.id === beatId)?.position.y || 0)
-      }
-      
-      return {
-        ...b,
-        position: {
-          x: beatDragStartPosition.value.x + deltaX + offset.x,
-          y: beatDragStartPosition.value.y + deltaY + offset.y
-        },
-        updatedAt: new Date().toISOString()
-      }
-    }
-    return b
-  })
-}
-
 // Beat drag handlers
-function handleBeatDragStart(beatId: string, isShiftKey: boolean) {
+function handleBeatDragStart(beatId: string) {
   isDraggingBeat.value = true
   draggingBeatId.value = beatId
-  isDragToDisconnect.value = isShiftKey
   
-  const beat = project.value.beats.find(b => b.id === beatId)
+  const beat = project.value.beats.find((b: Beat) => b.id === beatId)
   if (!beat) return
   
   // Check if beat belongs to a group
   const parentGroup = projectService.getGroupForBeat(project.value, beatId)
   
-  // Si el beat está en un grupo, SIEMPRE sacarlo del grupo al hacer drag
-  // (sin importar si es Shift o no)
+  // Si el beat está en un grupo, extraerlo del grupo al hacer drag
   if (parentGroup) {
     project.value = projectService.removeBeatFromGroup(project.value, beatId, parentGroup.id)
-    draggingGroupBeats.value = new Set([beatId])
-  }
-  // Si es Shift+Drag y tiene conexiones, desconectar
-  else if (isShiftKey && (beat.prevBeatId || beat.nextBeatId)) {
-    project.value = projectService.disconnectBeat(project.value, beatId)
-    draggingGroupBeats.value = new Set([beatId])
-  }
-  // Si tiene conexiones, arrastrar toda la cadena
-  else if (beat.prevBeatId || beat.nextBeatId) {
-    // Identificar todos los beats del grupo conectado
-    const groupBeats = new Set<string>()
-    groupBeats.add(beatId)
-    
-    // Traverse backward
-    let current = beat
-    while (current.prevBeatId) {
-      groupBeats.add(current.prevBeatId)
-      current = project.value.beats.find(b => b.id === current!.prevBeatId)!
-      if (!current) break
-    }
-    
-    // Traverse forward
-    current = beat
-    while (current.nextBeatId) {
-      groupBeats.add(current.nextBeatId)
-      current = project.value.beats.find(b => b.id === current!.nextBeatId)!
-      if (!current) break
-    }
-    
-    draggingGroupBeats.value = groupBeats
-  } else {
-    draggingGroupBeats.value = new Set([beatId])
   }
   
-  // Guardar posición inicial del beat principal
+  // Guardar posición inicial del beat
   beatDragStartPosition.value = { ...beat.position }
 }
 
@@ -586,127 +499,33 @@ function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
   const beat = project.value.beats.find(b => b.id === beatId)
   if (!beat) return
   
-  // El beat ya fue extraído del grupo en handleBeatDragStart si estaba en uno
-  // Ahora solo manejamos el movimiento de beats conectados o individuales
-  
-  // Si NO es Shift+Drag y el beat está conectado, mover toda la cadena
-  if (!isDragToDisconnect.value && (beat.prevBeatId || beat.nextBeatId)) {
-    moveConnectedChain(beatId, deltaXScaled, deltaYScaled)
-  } else {
-    // Mover solo este beat
-    const newX = beatDragStartPosition.value.x + deltaXScaled
-    const newY = beatDragStartPosition.value.y + deltaYScaled
-    
-    const beatIndex = project.value.beats.findIndex(b => b.id === beatId)
-    if (beatIndex !== -1) {
-      project.value.beats[beatIndex] = {
-        ...project.value.beats[beatIndex],
-        position: { x: newX, y: newY },
-        updatedAt: new Date().toISOString()
-      }
-    }
-  }
-  
-  // Detectar zonas magnéticas siempre (ahora soporta grupos)
+  // Mover el beat a la nueva posición
   const newX = beatDragStartPosition.value.x + deltaXScaled
   const newY = beatDragStartPosition.value.y + deltaYScaled
-  detectMagnetZones(newX, newY)
+  
+  const beatIndex = project.value.beats.findIndex(b => b.id === beatId)
+  if (beatIndex !== -1) {
+    project.value.beats[beatIndex] = {
+      ...project.value.beats[beatIndex],
+      position: { x: newX, y: newY },
+      updatedAt: new Date().toISOString()
+    }
+  }
   
   // Detectar colisión con BeatGroups
   detectGroupHover(newX, newY)
 }
 
-// Helper function to get beats in a group in the correct order (first to last)
-function getOrderedGroupBeats(draggedBeatId: string): string[] {
-  if (draggingGroupBeats.value.size === 1) {
-    return [draggedBeatId]
-  }
-  
-  const orderedBeats: string[] = []
-  const beats = project.value.beats
-  
-  // Find the first beat in the chain (no prevBeatId)
-  let firstBeat = beats.find(b => draggingGroupBeats.value.has(b.id) && !b.prevBeatId)
-  if (!firstBeat) {
-    // Fallback: use dragged beat as first
-    firstBeat = beats.find(b => b.id === draggedBeatId)
-  }
-  
-  if (!firstBeat) return [draggedBeatId]
-  
-  // Traverse forward to build ordered array
-  let current = firstBeat
-  orderedBeats.push(current.id)
-  
-  while (current.nextBeatId && draggingGroupBeats.value.has(current.nextBeatId)) {
-    const next = beats.find(b => b.id === current.nextBeatId)
-    if (!next) break
-    orderedBeats.push(next.id)
-    current = next
-  }
-  
-  return orderedBeats
-}
-
-function detectMagnetZones(beatX: number, beatY: number) {
-  const newMagnetZones = new Map<string, 'top' | 'bottom'>()
-  const BEAT_WIDTH = 400 // BeatCard width (actualizado a 400px)
-  
-  // Check overlap with each beat (except the dragging group)
-  for (const targetBeat of project.value.beats) {
-    // Skip beats that are part of the dragging group
-    if (draggingGroupBeats.value.has(targetBeat.id)) continue
-    
-    // Calculate bounding boxes
-    const draggedLeft = beatX
-    const draggedRight = beatX + BEAT_WIDTH
-    const draggedTop = beatY
-    const draggedBottom = beatY + BEAT_HEIGHT
-    const draggedMidY = beatY + BEAT_HEIGHT / 2
-    
-    const targetLeft = targetBeat.position.x
-    const targetRight = targetBeat.position.x + BEAT_WIDTH
-    const targetTop = targetBeat.position.y
-    const targetBottom = targetBeat.position.y + BEAT_HEIGHT
-    const targetMidY = targetBeat.position.y + BEAT_HEIGHT / 2
-    
-    // Check horizontal overlap
-    const hasHorizontalOverlap = draggedRight > targetLeft && draggedLeft < targetRight
-    if (!hasHorizontalOverlap) continue
-    
-    // Calculate vertical overlap
-    const overlapTop = Math.max(draggedTop, targetTop)
-    const overlapBottom = Math.min(draggedBottom, targetBottom)
-    const overlapHeight = Math.max(0, overlapBottom - overlapTop)
-    const overlapRatio = overlapHeight / BEAT_HEIGHT
-    
-    // Check if overlap exceeds threshold
-    if (overlapRatio < MAGNET_OVERLAP_THRESHOLD) continue
-    
-    // Determine which zone: top if dragged beat's center is above target's center
-    if (draggedMidY < targetMidY) {
-      newMagnetZones.set(targetBeat.id, 'top')
-    } else {
-      newMagnetZones.set(targetBeat.id, 'bottom')
-    }
-  }
-  
-  magnetZones.value = newMagnetZones
-}
-
 function handleBeatDragEnd(beatId: string) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
-  // Priority 1: Check if dropped into a BeatGroup
+  // Check if dropped into a BeatGroup
   if (hoveredGroupId.value) {
     project.value = projectService.dropBeatIntoGroup(project.value, beatId, hoveredGroupId.value)
     
     // Clear drag state
     isDraggingBeat.value = false
     draggingBeatId.value = null
-    isDragToDisconnect.value = false
-    draggingGroupBeats.value = new Set()
-    magnetZones.value = new Map()
     hoveredGroupId.value = null
     
     // Save project
@@ -715,47 +534,14 @@ function handleBeatDragEnd(beatId: string) {
     return
   }
   
-  // Priority 2: Check if dragged beat/group landed on a magnet zone
-  let connectionMade = false
-  for (const [targetBeatId, zone] of magnetZones.value.entries()) {
-    // Si se está arrastrando un grupo de beats conectados
-    if (draggingGroupBeats.value.size > 1) {
-      // Obtener el orden correcto de los beats en el grupo
-      const groupBeatsArray = getOrderedGroupBeats(beatId)
-      project.value = projectService.insertGroupAt(project.value, groupBeatsArray, targetBeatId, zone)
-      connectionMade = true
-    } else {
-      // Comportamiento original para beats individuales
-      if (zone === 'top') {
-        project.value = projectService.connectToTop(project.value, beatId, targetBeatId)
-        connectionMade = true
-      } else if (zone === 'bottom') {
-        project.value = projectService.connectToBottom(project.value, beatId, targetBeatId)
-        connectionMade = true
-      }
-    }
-    
-    // Only connect to first magnet zone found
-    break
-  }
-  
   // Clear drag state
   isDraggingBeat.value = false
   draggingBeatId.value = null
-  isDragToDisconnect.value = false
-  draggingGroupBeats.value = new Set()
-  magnetZones.value = new Map()
   hoveredGroupId.value = null
   
-  // Save project with updated position and connections
+  // Save project with updated position
   projectService.saveCurrentProject(project.value)
-  console.log(connectionMade ? 'Beat connected' : 'Beat position saved')
-}
-
-function handleBeatDisconnect(beatId: string) {
-  project.value = projectService.disconnectBeat(project.value, beatId)
-  projectService.saveCurrentProject(project.value)
-  console.log('Beat disconnected')
+  console.log('Beat position saved')
 }
 
 // Group drag handlers
@@ -824,22 +610,21 @@ function handleGroupDragEnd(groupId: string) {
 // Detect if dragged beat is over a BeatGroup
 function detectGroupHover(beatX: number, beatY: number) {
   const BEAT_WIDTH = 400
+  const BEAT_HEIGHT = 80
   const GROUP_WIDTH = 430
   const GROUP_HEIGHT = 50
   
-  // Calculate dragged beat bounds
   const beatLeft = beatX
   const beatRight = beatX + BEAT_WIDTH
   const beatTop = beatY
   const beatBottom = beatY + BEAT_HEIGHT
   
-  // First, check if we're colliding with any beats IN a group
-  // If so, we should NOT activate group hover (feature not implemented yet)
+  // First check if beat is over ANY beat in ANY group
   for (const group of project.value.beatGroups) {
     if (group.beatIds.length === 0) continue
     
     for (const beatId of group.beatIds) {
-      const groupBeat = project.value.beats.find(b => b.id === beatId)
+      const groupBeat = project.value.beats.find((b: Beat) => b.id === beatId)
       if (!groupBeat) continue
       
       const groupBeatLeft = groupBeat.position.x
@@ -914,24 +699,55 @@ function handleUpdateGroup(updatedGroup: BeatGroup) {
   console.log('Group updated:', updatedGroup.name)
 }
 
-async function handleDeleteGroup(groupId: string) {
-  const group = project.value.beatGroups.find(g => g.id === groupId)
+function handleDeleteBeat(beatId: string) {
+  const beat = project.value.beats.find((b: Beat) => b.id === beatId)
+  if (!beat) return
+  
+  const confirmed = confirm(t('beatCard.deleteConfirm', { title: beat.title }))
+  if (!confirmed) return
+  
+  // Check if beat is in a group
+  const parentGroup = projectService.getGroupForBeat(project.value, beatId)
+  
+  if (parentGroup) {
+    // Remove from group first (this will reposition remaining beats)
+    project.value = projectService.removeBeatFromGroup(project.value, beatId, parentGroup.id)
+  }
+  
+  // Delete the beat
+  project.value = projectService.deleteBeat(project.value, beatId)
+  projectService.saveCurrentProject(project.value)
+  
+  // Clear selection if deleted beat was selected
+  if (selectedEntity.value?.type === 'beat' && (selectedEntity.value.data as Beat).id === beatId) {
+    selectedEntity.value = {
+      type: 'project',
+      data: project.value
+    }
+  }
+  
+  console.log('Beat deleted:', beatId)
+}
+
+function handleDeleteGroup(groupId: string) {
+  const group = project.value.beatGroups.find((g: BeatGroup) => g.id === groupId)
   if (!group) return
   
-  // Request confirmation from user
-  if (!confirm(t('groupProperties.deleteConfirmation', { name: group.name }))) {
-    return
-  }
+  const confirmed = confirm(t('groupProperties.deleteConfirm', { name: group.name }))
+  if (!confirmed) return
   
   project.value = projectService.deleteBeatGroup(project.value, groupId)
   projectService.saveCurrentProject(project.value)
   
-  // Close properties panel if deleted group was selected
-  if (selectedEntity.value?.type === 'group' && selectedEntity.value.data.id === groupId) {
-    selectedEntity.value = null
+  // Clear selection if deleted group was selected
+  if (selectedEntity.value?.type === 'group') {
+    selectedEntity.value = {
+      type: 'project',
+      data: project.value
+    }
   }
   
-  console.log('Group deleted:', group.name)
+  console.log('Group deleted:', groupId)
 }
 
 </script>

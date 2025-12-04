@@ -20,7 +20,43 @@ vi.mock('@/presentation/components/BeatCard.vue', () => ({
   default: {
     name: 'BeatCard',
     template: '<div class="beat-card">{{ beat.title }}</div>',
-    props: ['beat', 'beatType']
+    props: ['beat', 'beatType', 'isGroupDragging'],
+    emits: ['click', 'dragstart', 'dragmove', 'dragend', 'delete']
+  }
+}))
+
+vi.mock('@/presentation/components/BeatGroupCard.vue', () => ({
+  default: {
+    name: 'BeatGroupCard',
+    template: '<div class="beat-group-card">{{ group.name }}</div>',
+    props: ['group', 'zoom', 'isHovered'],
+    emits: ['click', 'dragstart', 'dragmove', 'dragend', 'delete']
+  }
+}))
+
+vi.mock('@/presentation/components/GroupConnectionLine.vue', () => ({
+  default: {
+    name: 'GroupConnectionLine',
+    template: '<div class="group-connection-line"></div>',
+    props: ['group', 'beat']
+  }
+}))
+
+vi.mock('@/presentation/components/PropertiesPanel.vue', () => ({
+  default: {
+    name: 'PropertiesPanel',
+    template: '<div class="properties-panel"></div>',
+    props: ['selectedEntity', 'beatTypes'],
+    emits: ['update-project', 'update-beat', 'update-group']
+  }
+}))
+
+vi.mock('@/presentation/components/BeatGridView.vue', () => ({
+  default: {
+    name: 'BeatGridView',
+    template: '<div class="beat-grid-view"></div>',
+    props: ['beats', 'beatTypes'],
+    emits: ['beat-click']
   }
 }))
 
@@ -73,6 +109,7 @@ vi.mock('@/application/ProjectService', () => ({
         { id: 'news', name: 'Noticia', color: '#2196F3', icon: 'mdi-newspaper' },
         { id: 'vtr', name: 'VTR', color: '#9C27B0', icon: 'mdi-video' }
       ],
+      beatGroups: [], // Add beatGroups to prevent undefined errors
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z'
     })),
@@ -92,6 +129,22 @@ vi.mock('@/application/ProjectService', () => ({
       links: [],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
+    })),
+    deleteBeat: vi.fn((project, beatId) => ({
+      ...project,
+      beats: project.beats.filter((b: { id: string }) => b.id !== beatId)
+    })),
+    getGroupForBeat: vi.fn(() => null),
+    removeBeatFromGroup: vi.fn((project) => project),
+    deleteBeatGroup: vi.fn((project, groupId) => ({
+      ...project,
+      beatGroups: project.beatGroups.filter((g: { id: string }) => g.id !== groupId)
+    })),
+    updateBeatGroup: vi.fn((project, groupId, updates) => ({
+      ...project,
+      beatGroups: project.beatGroups.map((g: { id: string }) =>
+        g.id === groupId ? { ...g, ...updates } : g
+      )
     }))
   }
 }))
