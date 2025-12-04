@@ -11,6 +11,7 @@ export default {
   },
   toolbar: {
     newProject: 'New Project',
+    newProjectConfirm: 'Create new project? Current work will be lost.',
     save: 'Save',
     export: 'Export',
     exportToJSON: 'Export to JSON',

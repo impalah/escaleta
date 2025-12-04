@@ -171,9 +171,19 @@ export class ProjectService {
   createBeat(typeId: string, project: Project): Beat {
     const now = new Date().toISOString()
 
-    // Calculate next available position (simple horizontal layout)
-    const maxX = project.beats.reduce((max, b) => Math.max(max, b.position.x), 0)
-    const nextX = maxX > 0 ? maxX + 250 : 100
+    // Calculate next available position in a visible grid layout
+    const beatsCount = project.beats.length
+    const COLS = 4 // Number of beats per row
+    const SPACING_X = 450
+    const SPACING_Y = 150
+    const START_X = 100
+    const START_Y = 100
+    
+    const col = beatsCount % COLS
+    const row = Math.floor(beatsCount / COLS)
+    
+    const nextX = START_X + (col * SPACING_X)
+    const nextY = START_Y + (row * SPACING_Y)
 
     // Calculate next order number
     const maxOrder = project.beats.reduce((max, b) => Math.max(max, b.order), 0)
@@ -185,7 +195,7 @@ export class ProjectService {
       description: '',
       typeId,
       order: nextOrder,
-      position: { x: nextX, y: 100 },
+      position: { x: nextX, y: nextY },
       links: [],
       createdAt: now,
       updatedAt: now
@@ -652,16 +662,26 @@ export class ProjectService {
     const maxOrder = project.beatGroups.reduce((max, g) => Math.max(max, g.order), 0)
     const nextOrder = maxOrder + 1
     
-    // Calculate initial position (simple horizontal layout)
-    const maxX = project.beatGroups.reduce((max, g) => Math.max(max, g.position.x), 0)
-    const nextX = maxX > 0 ? maxX + 500 : 100
+    // Calculate initial position in a visible grid layout
+    const groupsCount = project.beatGroups.length
+    const COLS = 3 // Number of groups per row
+    const SPACING_X = 500
+    const SPACING_Y = 200
+    const START_X = 100
+    const START_Y = 50
+    
+    const col = groupsCount % COLS
+    const row = Math.floor(groupsCount / COLS)
+    
+    const nextX = START_X + (col * SPACING_X)
+    const nextY = START_Y + (row * SPACING_Y)
     
     return {
       id: uuidv4(),
       name,
       description: '',
       beatIds,
-      position: { x: nextX, y: 50 },
+      position: { x: nextX, y: nextY },
       collapsed: false,
       order: nextOrder,
       createdAt: now,
@@ -742,6 +762,244 @@ export class ProjectService {
       ),
       updatedAt: new Date().toISOString()
     }
+  }
+
+  /**
+   * Get all beats in a connected chain (including the beat itself)
+   */
+  getConnectedChain(project: Project, beatId: string): string[] {
+    const beat = project.beats.find(b => b.id === beatId)
+    if (!beat) return []
+
+    const chain = new Set<string>()
+    chain.add(beatId)
+
+    // Traverse backward to find all previous beats
+    let current = beat
+    while (current.prevBeatId) {
+      chain.add(current.prevBeatId)
+      const prev = project.beats.find(b => b.id === current!.prevBeatId)
+      if (!prev) break
+      current = prev
+    }
+
+    // Traverse forward to find all next beats
+    current = beat
+    while (current.nextBeatId) {
+      chain.add(current.nextBeatId)
+      const next = project.beats.find(b => b.id === current!.nextBeatId)
+      if (!next) break
+      current = next
+    }
+
+    return Array.from(chain)
+  }
+
+  /**
+   * Add a beat (and its connected chain) to a group
+   * Positions beats sequentially below the group header
+   */
+  dropBeatIntoGroup(project: Project, beatId: string, groupId: string): Project {
+    const GAP = 10
+    const GROUP_HEIGHT = 50
+    const BEAT_HEIGHT = 80
+    
+    const group = project.beatGroups.find(g => g.id === groupId)
+    if (!group) return project
+
+    // Get all beats in the dragged chain
+    const chainIds = this.getConnectedChain(project, beatId)
+    
+    // Add beats to group (avoid duplicates)
+    const updatedBeatIds = [...new Set([...group.beatIds, ...chainIds])]
+    
+    // Position beats sequentially
+    let updatedBeats = project.beats.map(beat => {
+      if (!chainIds.includes(beat.id)) return beat
+      
+      // Find the position for this beat in the group
+      const indexInGroup = updatedBeatIds.indexOf(beat.id)
+      
+      if (indexInGroup === 0) {
+        // First beat: position below group header
+        return {
+          ...beat,
+          position: {
+            x: group.position.x,
+            y: group.position.y + GROUP_HEIGHT + GAP
+          },
+          updatedAt: new Date().toISOString()
+        }
+      } else {
+        // Subsequent beats: position below previous beat
+        const prevBeatId = updatedBeatIds[indexInGroup - 1]
+        const prevBeat = project.beats.find(b => b.id === prevBeatId)
+        
+        if (prevBeat) {
+          return {
+            ...beat,
+            position: {
+              x: prevBeat.position.x,
+              y: prevBeat.position.y + BEAT_HEIGHT + GAP
+            },
+            updatedAt: new Date().toISOString()
+          }
+        }
+      }
+      
+      return beat
+    })
+    
+    // Update project with repositioned beats and updated group
+    return {
+      ...project,
+      beats: updatedBeats,
+      beatGroups: project.beatGroups.map(g =>
+        g.id === groupId
+          ? {
+              ...g,
+              beatIds: updatedBeatIds,
+              updatedAt: new Date().toISOString()
+            }
+          : g
+      ),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Order beat IDs by their chain connections (first to last)
+   */
+  private orderBeatChain(project: Project, beatIds: string[]): string[] {
+    if (beatIds.length === 0) return []
+    if (beatIds.length === 1) return beatIds
+
+    // Find the first beat (no prevBeatId or prevBeat not in chain)
+    const firstBeat = project.beats.find(b => 
+      beatIds.includes(b.id) && (!b.prevBeatId || !beatIds.includes(b.prevBeatId))
+    )
+    
+    if (!firstBeat) return beatIds // Fallback if chain structure is broken
+
+    // Build ordered list by following nextBeatId
+    const ordered: string[] = [firstBeat.id]
+    let current = firstBeat
+    
+    while (current.nextBeatId && beatIds.includes(current.nextBeatId)) {
+      ordered.push(current.nextBeatId)
+      const next = project.beats.find(b => b.id === current!.nextBeatId)
+      if (!next) break
+      current = next
+    }
+
+    return ordered
+  }
+
+  /**
+   * Calculate the Y position for a beat in a group based on its index
+   */
+  private calculateBeatYPositionInGroup(groupY: number, beatIndex: number): number {
+    const GAP = 10
+    const GROUP_HEIGHT = 50
+    const BEAT_HEIGHT = 80
+    
+    if (beatIndex === 0) {
+      return groupY + GROUP_HEIGHT + GAP
+    } else {
+      return groupY + GROUP_HEIGHT + GAP + (beatIndex * (BEAT_HEIGHT + GAP))
+    }
+  }
+
+  /**
+   * Remove a beat (and potentially reorganize its chain) from a group
+   * Handles drag to extract a beat from a group and repositions remaining beats
+   */
+  removeBeatFromGroup(project: Project, beatId: string, groupId: string): Project {
+    const GAP = 10
+    const GROUP_HEIGHT = 50
+    
+    const group = project.beatGroups.find(g => g.id === groupId)
+    const beat = project.beats.find(b => b.id === beatId)
+    
+    if (!group || !beat) return project
+
+    // Get the index of the beat being removed
+    const removedBeatIndex = group.beatIds.indexOf(beatId)
+
+    // Get the chain of the beat being removed
+    const removedChain = this.getConnectedChain(project, beatId)
+    
+    // Remove all beats in the removed chain from the group
+    const remainingBeatIds = group.beatIds.filter(id => !removedChain.includes(id))
+    
+    // If the removed beat has prev and next, connect them
+    if (beat.prevBeatId && beat.nextBeatId && !removedChain.includes(beat.prevBeatId)) {
+      // Reconnect the gap left by removing this beat
+      project = {
+        ...project,
+        beats: project.beats.map(b => {
+          if (b.id === beat.prevBeatId) {
+            return { ...b, nextBeatId: beat.nextBeatId, updatedAt: new Date().toISOString() }
+          }
+          if (b.id === beat.nextBeatId) {
+            return { ...b, prevBeatId: beat.prevBeatId, updatedAt: new Date().toISOString() }
+          }
+          return b
+        })
+      }
+    }
+
+    // Reposition remaining beats to fill the gap
+    // All remaining beats need to be repositioned to their correct sequential positions
+    project = {
+      ...project,
+      beats: project.beats.map(b => {
+        const indexInRemaining = remainingBeatIds.indexOf(b.id)
+        
+        // If this beat is in the remaining beats, recalculate its position
+        if (indexInRemaining !== -1) {
+          const newY = this.calculateBeatYPositionInGroup(group.position.y, indexInRemaining)
+          
+          return {
+            ...b,
+            position: {
+              x: group.position.x,
+              y: newY
+            },
+            updatedAt: new Date().toISOString()
+          }
+        }
+        return b
+      })
+    }
+
+    return {
+      ...project,
+      beatGroups: project.beatGroups.map(g =>
+        g.id === groupId
+          ? {
+              ...g,
+              beatIds: remainingBeatIds,
+              updatedAt: new Date().toISOString()
+            }
+          : g
+      ),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Get the group that contains a beat
+   */
+  getGroupForBeat(project: Project, beatId: string): BeatGroup | undefined {
+    return project.beatGroups.find(g => g.beatIds.includes(beatId))
+  }
+
+  /**
+   * Check if a beat belongs to a group
+   */
+  belongsToBeatGroup(project: Project, beatId: string): boolean {
+    return project.beatGroups.some(g => g.beatIds.includes(beatId))
   }
 
   // TODO: Implement export to JSON

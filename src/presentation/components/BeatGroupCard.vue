@@ -1,6 +1,7 @@
 <template>
   <div
     class="beat-group-card"
+    :class="{ 'group-hovered': isHovered }"
     :style="groupStyle"
     :data-group-id="group.id"
     @mousedown="handleMouseDown"
@@ -30,6 +31,7 @@ import type { BeatGroup } from '@/domain/entities'
 const props = defineProps<{
   group: BeatGroup
   zoom?: number
+  isHovered?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -203,7 +205,12 @@ function handleDelete(event: Event) {
 .beat-group-card:hover {
   box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
-
+.beat-group-card.group-hovered {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 6px 16px rgba(102, 126, 234, 0.5);
+  background: linear-gradient(135deg, #7c8ff0 0%, #8557b0 100%);
+}
 .group-header {
   display: flex;
   align-items: center;

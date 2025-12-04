@@ -1,5 +1,6 @@
 <template>
   <div class="beat-card-wrapper" 
+    :class="{ 'is-dragging': isDragging }"
     :data-beat-id="beat.id"
     :style="{
     left: `${beat.position.x}px`,
@@ -76,6 +77,7 @@ const props = defineProps<{
   beat: Beat
   beatType: BeatType | undefined
   magnetZone?: 'top' | 'bottom' | null // Zona de imán activa
+  isGroupDragging?: boolean // True when entire group is being dragged
 }>()
 
 const emit = defineEmits<{
@@ -87,9 +89,12 @@ const emit = defineEmits<{
 }>()
 
 const isDragging = ref(false)
+const dragStarted = ref(false) // Track if drag actually started (after threshold)
 const dragStart = ref({ x: 0, y: 0 })
 const hasMoved = ref(false)
 const touchIdentifier = ref<number | null>(null)
+const initialShiftKey = ref(false) // Store initial shift key state
+const DRAG_THRESHOLD = 10 // pixels to move before starting drag
 
 function handleMouseDown(event: MouseEvent) {
   // Prevent triggering click on canvas pan
@@ -101,10 +106,12 @@ function handleMouseDown(event: MouseEvent) {
   }
   
   isDragging.value = true
+  dragStarted.value = false
   hasMoved.value = false
   dragStart.value = { x: event.clientX, y: event.clientY }
+  initialShiftKey.value = event.shiftKey // Store initial shift key state
   
-  emit('dragstart', props.beat.id, event.shiftKey)
+  // Don't emit dragstart yet - wait for threshold
   
   // Add global listeners for drag
   document.addEventListener('mousemove', handleMouseMove)
@@ -120,19 +127,31 @@ function handleMouseMove(event: MouseEvent) {
   
   const deltaX = event.clientX - dragStart.value.x
   const deltaY = event.clientY - dragStart.value.y
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
   
-  // Mark as moved if dragged more than 5px (to distinguish from click)
-  if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-    hasMoved.value = true
+  // Check if we've moved past the threshold
+  if (!dragStarted.value && distance >= DRAG_THRESHOLD) {
+    dragStarted.value = true
+    // Use the initial shift key state, not the current one
+    emit('dragstart', props.beat.id, initialShiftKey.value)
   }
   
-  emit('dragmove', props.beat.id, deltaX, deltaY)
+  // Only emit dragmove if drag has actually started
+  if (dragStarted.value) {
+    hasMoved.value = true
+    emit('dragmove', props.beat.id, deltaX, deltaY)
+  }
 }
 
 function handleMouseUp() {
   if (isDragging.value) {
+    // Only emit dragend if drag actually started (past threshold)
+    if (dragStarted.value) {
+      emit('dragend', props.beat.id)
+    }
+    
     isDragging.value = false
-    emit('dragend', props.beat.id)
+    dragStarted.value = false
     
     // Remove global listeners
     document.removeEventListener('mousemove', handleMouseMove)
@@ -155,11 +174,11 @@ function handleTouchStart(event: TouchEvent) {
   
   touchIdentifier.value = touch.identifier
   isDragging.value = true
+  dragStarted.value = false
   hasMoved.value = false
   dragStart.value = { x: touch.clientX, y: touch.clientY }
   
-  // Check if shift key equivalent (could use long press in future)
-  emit('dragstart', props.beat.id, false)
+  // Don't emit dragstart yet - wait for threshold
   
   // Add global listeners for touch drag
   document.addEventListener('touchmove', handleTouchMove, { passive: false })
@@ -170,22 +189,27 @@ function handleTouchStart(event: TouchEvent) {
 function handleTouchMove(event: TouchEvent) {
   if (!isDragging.value || touchIdentifier.value === null) return
   
-  // Prevent default to avoid scrolling
-  event.preventDefault()
-  
   // Find the touch that matches our identifier
   const touch = Array.from(event.touches).find(t => t.identifier === touchIdentifier.value)
   if (!touch) return
   
   const deltaX = touch.clientX - dragStart.value.x
   const deltaY = touch.clientY - dragStart.value.y
+  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
   
-  // Mark as moved if dragged more than 5px (to distinguish from tap)
-  if (Math.abs(deltaX) > 5 || Math.abs(deltaY) > 5) {
-    hasMoved.value = true
+  // Check if we've moved past the threshold
+  if (!dragStarted.value && distance >= DRAG_THRESHOLD) {
+    dragStarted.value = true
+    emit('dragstart', props.beat.id, false)
   }
   
-  emit('dragmove', props.beat.id, deltaX, deltaY)
+  // Only prevent default and emit dragmove if drag has actually started
+  if (dragStarted.value) {
+    // Prevent default to avoid scrolling
+    event.preventDefault()
+    hasMoved.value = true
+    emit('dragmove', props.beat.id, deltaX, deltaY)
+  }
 }
 
 function handleTouchEnd(event: TouchEvent) {
@@ -195,9 +219,14 @@ function handleTouchEnd(event: TouchEvent) {
   const touchEnded = !Array.from(event.touches).some(t => t.identifier === touchIdentifier.value)
   
   if (touchEnded) {
+    // Only emit dragend if drag actually started (past threshold)
+    if (dragStarted.value) {
+      emit('dragend', props.beat.id)
+    }
+    
     isDragging.value = false
+    dragStarted.value = false
     touchIdentifier.value = null
-    emit('dragend', props.beat.id)
     
     // Remove global listeners
     document.removeEventListener('touchmove', handleTouchMove)
@@ -236,6 +265,12 @@ function getContrastColor(hexColor: string | undefined): string {
 .beat-card-wrapper {
   position: absolute;
   width: 400px;
+  transition: left 0.3s ease-out, top 0.3s ease-out;
+}
+
+.beat-card-wrapper.is-dragging,
+.beat-card-wrapper.no-transition {
+  transition: none; /* Disable transition during active drag or group movement */
 }
 
 .beat-card {

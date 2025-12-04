@@ -127,11 +127,20 @@
           :key="group.id"
           :group="group"
           :zoom="zoom"
+          :is-hovered="hoveredGroupId === group.id"
           @click="selectGroup"
           @dragstart="handleGroupDragStart"
           @dragmove="handleGroupDragMove"
           @dragend="handleGroupDragEnd"
           @delete="handleDeleteGroup"
+        />
+
+        <!-- Group Connection Lines (from group header to first beat) -->
+        <GroupConnectionLine
+          v-for="group in project.beatGroups.filter(g => g.beatIds.length > 0)"
+          :key="`group-line-${group.id}`"
+          :group="group"
+          :beat="project.beats.find(b => b.id === group.beatIds[0])!"
         />
 
         <!-- Beat Cards -->
@@ -141,6 +150,7 @@
           :beat="beat"
           :beat-type="getBeatType(beat.typeId)"
           :magnet-zone="magnetZones.get(beat.id) || null"
+          :is-group-dragging="isDraggingGroup"
           @click="selectBeat(beat)"
           @dragstart="handleBeatDragStart"
           @dragmove="handleBeatDragMove"
@@ -185,6 +195,7 @@ import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
+import GroupConnectionLine from '@/presentation/components/GroupConnectionLine.vue'
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
 import BeatGridView from '@/presentation/components/BeatGridView.vue'
@@ -231,6 +242,9 @@ const draggingGroupBeats = ref<Set<string>>(new Set()) // IDs of all beats in dr
 const isDraggingGroup = ref(false)
 const draggingGroupId = ref<string | null>(null)
 const groupDragStartPosition = ref({ x: 0, y: 0 })
+
+// Beat-to-Group hover state (for highlighting groups during beat drag)
+const hoveredGroupId = ref<string | null>(null)
 
 // Magnet zones state
 const magnetZones = ref<Map<string, 'top' | 'bottom'>>(new Map())
@@ -325,8 +339,25 @@ function handleSave() {
 }
 
 function handleNewProject() {
-  // TODO: Implement new project dialog
-  console.log('TODO: New project')
+  // Confirm if user wants to discard current project
+  if (!confirm(t('toolbar.newProjectConfirm') || 'Create new project? Current work will be lost.')) {
+    return
+  }
+  
+  // Create new empty project
+  const newProject = projectService.createDefaultProject()
+  project.value = newProject
+  
+  // Clear localStorage and save new empty project
+  projectService.saveCurrentProject(newProject)
+  
+  // Reset selected entity to project
+  selectedEntity.value = {
+    type: 'project',
+    data: newProject
+  }
+  
+  console.log('New project created')
 }
 
 function handleExportJSON() {
@@ -500,11 +531,22 @@ function handleBeatDragStart(beatId: string, isShiftKey: boolean) {
   const beat = project.value.beats.find(b => b.id === beatId)
   if (!beat) return
   
-  // Si es Shift+Drag, desconectar el beat primero
-  if (isShiftKey && (beat.prevBeatId || beat.nextBeatId)) {
+  // Check if beat belongs to a group
+  const parentGroup = projectService.getGroupForBeat(project.value, beatId)
+  
+  // Si el beat está en un grupo, SIEMPRE sacarlo del grupo al hacer drag
+  // (sin importar si es Shift o no)
+  if (parentGroup) {
+    project.value = projectService.removeBeatFromGroup(project.value, beatId, parentGroup.id)
+    draggingGroupBeats.value = new Set([beatId])
+  }
+  // Si es Shift+Drag y tiene conexiones, desconectar
+  else if (isShiftKey && (beat.prevBeatId || beat.nextBeatId)) {
     project.value = projectService.disconnectBeat(project.value, beatId)
     draggingGroupBeats.value = new Set([beatId])
-  } else if (beat.prevBeatId || beat.nextBeatId) {
+  }
+  // Si tiene conexiones, arrastrar toda la cadena
+  else if (beat.prevBeatId || beat.nextBeatId) {
     // Identificar todos los beats del grupo conectado
     const groupBeats = new Set<string>()
     groupBeats.add(beatId)
@@ -544,6 +586,9 @@ function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
   const beat = project.value.beats.find(b => b.id === beatId)
   if (!beat) return
   
+  // El beat ya fue extraído del grupo en handleBeatDragStart si estaba en uno
+  // Ahora solo manejamos el movimiento de beats conectados o individuales
+  
   // Si NO es Shift+Drag y el beat está conectado, mover toda la cadena
   if (!isDragToDisconnect.value && (beat.prevBeatId || beat.nextBeatId)) {
     moveConnectedChain(beatId, deltaXScaled, deltaYScaled)
@@ -566,6 +611,9 @@ function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
   const newX = beatDragStartPosition.value.x + deltaXScaled
   const newY = beatDragStartPosition.value.y + deltaYScaled
   detectMagnetZones(newX, newY)
+  
+  // Detectar colisión con BeatGroups
+  detectGroupHover(newX, newY)
 }
 
 // Helper function to get beats in a group in the correct order (first to last)
@@ -649,7 +697,25 @@ function detectMagnetZones(beatX: number, beatY: number) {
 function handleBeatDragEnd(beatId: string) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
-  // Check if dragged beat/group landed on a magnet zone
+  // Priority 1: Check if dropped into a BeatGroup
+  if (hoveredGroupId.value) {
+    project.value = projectService.dropBeatIntoGroup(project.value, beatId, hoveredGroupId.value)
+    
+    // Clear drag state
+    isDraggingBeat.value = false
+    draggingBeatId.value = null
+    isDragToDisconnect.value = false
+    draggingGroupBeats.value = new Set()
+    magnetZones.value = new Map()
+    hoveredGroupId.value = null
+    
+    // Save project
+    projectService.saveCurrentProject(project.value)
+    console.log('Beat dropped into group')
+    return
+  }
+  
+  // Priority 2: Check if dragged beat/group landed on a magnet zone
   let connectionMade = false
   for (const [targetBeatId, zone] of magnetZones.value.entries()) {
     // Si se está arrastrando un grupo de beats conectados
@@ -676,8 +742,10 @@ function handleBeatDragEnd(beatId: string) {
   // Clear drag state
   isDraggingBeat.value = false
   draggingBeatId.value = null
-  draggingGroupBeats.value.clear()
-  magnetZones.value.clear()
+  isDragToDisconnect.value = false
+  draggingGroupBeats.value = new Set()
+  magnetZones.value = new Map()
+  hoveredGroupId.value = null
   
   // Save project with updated position and connections
   projectService.saveCurrentProject(project.value)
@@ -720,6 +788,26 @@ function handleGroupDragMove(groupId: string, deltaX: number, deltaY: number) {
   project.value = projectService.updateBeatGroup(project.value, groupId, {
     position: { x: newX, y: newY }
   })
+  
+  // Move all beats in the group by the same delta
+  if (group.beatIds.length > 0) {
+    project.value = {
+      ...project.value,
+      beats: project.value.beats.map(beat => {
+        if (group.beatIds.includes(beat.id)) {
+          return {
+            ...beat,
+            position: {
+              x: beat.position.x + deltaXScaled,
+              y: beat.position.y + deltaYScaled
+            },
+            updatedAt: new Date().toISOString()
+          }
+        }
+        return beat
+      })
+    }
+  }
 }
 
 function handleGroupDragEnd(groupId: string) {
@@ -731,6 +819,76 @@ function handleGroupDragEnd(groupId: string) {
   // Save project with updated group position
   projectService.saveCurrentProject(project.value)
   console.log('Group position saved')
+}
+
+// Detect if dragged beat is over a BeatGroup
+function detectGroupHover(beatX: number, beatY: number) {
+  const BEAT_WIDTH = 400
+  const GROUP_WIDTH = 430
+  const GROUP_HEIGHT = 50
+  
+  // Calculate dragged beat bounds
+  const beatLeft = beatX
+  const beatRight = beatX + BEAT_WIDTH
+  const beatTop = beatY
+  const beatBottom = beatY + BEAT_HEIGHT
+  
+  // First, check if we're colliding with any beats IN a group
+  // If so, we should NOT activate group hover (feature not implemented yet)
+  for (const group of project.value.beatGroups) {
+    if (group.beatIds.length === 0) continue
+    
+    for (const beatId of group.beatIds) {
+      const groupBeat = project.value.beats.find(b => b.id === beatId)
+      if (!groupBeat) continue
+      
+      const groupBeatLeft = groupBeat.position.x
+      const groupBeatRight = groupBeat.position.x + BEAT_WIDTH
+      const groupBeatTop = groupBeat.position.y
+      const groupBeatBottom = groupBeat.position.y + BEAT_HEIGHT
+      
+      const hasOverlapWithBeat = (
+        beatRight > groupBeatLeft &&
+        beatLeft < groupBeatRight &&
+        beatBottom > groupBeatTop &&
+        beatTop < groupBeatBottom
+      )
+      
+      if (hasOverlapWithBeat) {
+        // We're over a beat in the group, don't activate group hover
+        // (Drop on beats in group not implemented yet)
+        hoveredGroupId.value = null
+        return
+      }
+    }
+  }
+  
+  // Check collision with each BeatGroup header (only if not colliding with beats)
+  for (const group of project.value.beatGroups) {
+    // Skip if dragging the group itself
+    if (isDraggingGroup.value && draggingGroupId.value === group.id) continue
+    
+    const groupLeft = group.position.x
+    const groupRight = group.position.x + GROUP_WIDTH
+    const groupTop = group.position.y
+    const groupBottom = group.position.y + GROUP_HEIGHT
+    
+    // Check if there's overlap with the header ONLY
+    const hasOverlap = (
+      beatRight > groupLeft &&
+      beatLeft < groupRight &&
+      beatBottom > groupTop &&
+      beatTop < groupBottom
+    )
+    
+    if (hasOverlap) {
+      hoveredGroupId.value = group.id
+      return
+    }
+  }
+  
+  // No collision found
+  hoveredGroupId.value = null
 }
 
 // Group editing handlers
