@@ -92,6 +92,11 @@
         <v-icon>mdi-plus-circle</v-icon>
         <v-tooltip activator="parent" location="bottom">{{ t('toolbar.addBeat') }}</v-tooltip>
       </v-btn>
+
+      <v-btn icon color="secondary" @click="handleCreateGroup" aria-label="Create group">
+        <v-icon>mdi-group</v-icon>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.createGroup') }}</v-tooltip>
+      </v-btn>
     </v-app-bar>
 
     <!-- Beat Canvas (shown in canvas mode) -->
@@ -116,6 +121,19 @@
           transformOrigin: 'top left' 
         }"
       >
+        <!-- Beat Group Cards (rendered first, lower z-index) -->
+        <BeatGroupCard
+          v-for="group in project.beatGroups"
+          :key="group.id"
+          :group="group"
+          :zoom="zoom"
+          @click="selectGroup"
+          @dragstart="handleGroupDragStart"
+          @dragmove="handleGroupDragMove"
+          @dragend="handleGroupDragEnd"
+          @delete="handleDeleteGroup"
+        />
+
         <!-- Beat Cards -->
         <BeatCard
           v-for="beat in project.beats"
@@ -147,6 +165,7 @@
       :beat-types="project.beatTypes"
       @update-project="handleUpdateProject"
       @update-beat="handleUpdateBeat"
+      @update-group="handleUpdateGroup"
     />
 
     <!-- New Beat Dialog -->
@@ -162,9 +181,10 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
-import type { Beat, BeatType, Project } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
+import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
 import BeatGridView from '@/presentation/components/BeatGridView.vue'
@@ -206,6 +226,11 @@ const draggingBeatId = ref<string | null>(null)
 const beatDragStartPosition = ref({ x: 0, y: 0 })
 const isDragToDisconnect = ref(false) // Shift key state
 const draggingGroupBeats = ref<Set<string>>(new Set()) // IDs of all beats in dragging group
+
+// Group drag state
+const isDraggingGroup = ref(false)
+const draggingGroupId = ref<string | null>(null)
+const groupDragStartPosition = ref({ x: 0, y: 0 })
 
 // Magnet zones state
 const magnetZones = ref<Map<string, 'top' | 'bottom'>>(new Map())
@@ -318,6 +343,17 @@ function changeLanguage(locale: string) {
   setLanguage(locale)
 }
 
+function handleCreateGroup() {
+  const groupName = prompt(t('toolbar.createGroup'), 'New Group')
+  if (!groupName) return
+  
+  const newGroup = projectService.createBeatGroup(project.value, groupName)
+  project.value = projectService.addBeatGroup(project.value, newGroup)
+  projectService.saveCurrentProject(project.value)
+  
+  console.log('Group created:', newGroup.name)
+}
+
 function handleZoomIn() {
   zoom.value = Math.min(zoom.value + 0.1, 2)
 }
@@ -328,12 +364,12 @@ function handleZoomOut() {
 
 // Canvas panning handlers
 function handleCanvasMouseDown(event: MouseEvent) {
-  // Don't pan if dragging a beat or clicking on a beat card
-  if (isDraggingBeat.value) return
+  // Don't pan if dragging a beat or group
+  if (isDraggingBeat.value || isDraggingGroup.value) return
   
   const target = event.target as HTMLElement
-  if (target.closest('[data-testid="beat-card"]')) {
-    return // Clicked on a beat card, don't pan
+  if (target.closest('[data-testid="beat-card"]') || target.closest('[data-group-id]')) {
+    return // Clicked on a beat card or group card, don't pan
   }
 
   // Clicking on empty canvas shows project properties
@@ -653,6 +689,93 @@ function handleBeatDisconnect(beatId: string) {
   projectService.saveCurrentProject(project.value)
   console.log('Beat disconnected')
 }
+
+// Group drag handlers
+function handleGroupDragStart(groupId: string) {
+  isDraggingGroup.value = true
+  draggingGroupId.value = groupId
+  
+  const group = project.value.beatGroups.find(g => g.id === groupId)
+  if (!group) return
+  
+  groupDragStartPosition.value = { ...group.position }
+  console.log('Group drag started:', group.name)
+}
+
+function handleGroupDragMove(groupId: string, deltaX: number, deltaY: number) {
+  if (!isDraggingGroup.value || draggingGroupId.value !== groupId) return
+  
+  const group = project.value.beatGroups.find(g => g.id === groupId)
+  if (!group) return
+  
+  // Calculate new position accounting for zoom
+  const deltaXScaled = deltaX / zoom.value
+  const deltaYScaled = deltaY / zoom.value
+  
+  // Add delta to current position (not start position)
+  const newX = group.position.x + deltaXScaled
+  const newY = group.position.y + deltaYScaled
+  
+  // Update group position
+  project.value = projectService.updateBeatGroup(project.value, groupId, {
+    position: { x: newX, y: newY }
+  })
+}
+
+function handleGroupDragEnd(groupId: string) {
+  if (!isDraggingGroup.value || draggingGroupId.value !== groupId) return
+  
+  isDraggingGroup.value = false
+  draggingGroupId.value = null
+  
+  // Save project with updated group position
+  projectService.saveCurrentProject(project.value)
+  console.log('Group position saved')
+}
+
+// Group editing handlers
+function selectGroup(group: BeatGroup) {
+  selectedEntity.value = {
+    type: 'group',
+    data: group
+  }
+  console.log('Group selected:', group.name)
+}
+
+function handleUpdateGroup(updatedGroup: BeatGroup) {
+  project.value = projectService.updateBeatGroup(project.value, updatedGroup.id, updatedGroup)
+  projectService.saveCurrentProject(project.value)
+  
+  // Update selected entity with the new data
+  if (selectedEntity.value?.type === 'group' && selectedEntity.value.data.id === updatedGroup.id) {
+    selectedEntity.value = {
+      type: 'group',
+      data: updatedGroup
+    }
+  }
+  console.log('Group updated:', updatedGroup.name)
+}
+
+async function handleDeleteGroup(groupId: string) {
+  const group = project.value.beatGroups.find(g => g.id === groupId)
+  if (!group) return
+  
+  // Request confirmation from user
+  if (!confirm(t('groupProperties.deleteConfirmation', { name: group.name }))) {
+    return
+  }
+  
+  project.value = projectService.deleteBeatGroup(project.value, groupId)
+  projectService.saveCurrentProject(project.value)
+  
+  // Close properties panel if deleted group was selected
+  if (selectedEntity.value?.type === 'group' && selectedEntity.value.data.id === groupId) {
+    selectedEntity.value = null
+  }
+  
+  console.log('Group deleted:', group.name)
+}
+
 </script>
 
 <style scoped>

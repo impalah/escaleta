@@ -20,6 +20,7 @@ export default {
     zoomIn: 'Zoom In',
     zoomOut: 'Zoom Out',
     addBeat: 'Add Beat',
+    createGroup: 'Create Group',
     language: 'Language'
   },
   beatTypes: {
@@ -36,6 +37,7 @@ export default {
   propertiesPanel: {
     project: 'Project Properties',
     beat: 'Beat Properties',
+    group: 'Group Properties',
     maximize: 'Maximize',
     restore: 'Restore',
     dockLeft: 'Dock Left',
@@ -70,6 +72,18 @@ export default {
   beatCard: {
     disconnect: 'Disconnect (Shift + Drag)',
     delete: 'Delete Beat'
+  },
+  groupProperties: {
+    name: 'Group Name',
+    description: 'Description',
+    color: 'Color',
+    colorHint: 'Background color for the group',
+    collapsed: 'Collapsed',
+    order: 'Order',
+    beats: 'Beats in Group',
+    createdAt: 'Created At',
+    updatedAt: 'Last Updated',
+    deleteConfirmation: 'Are you sure you want to delete the group "{name}"? This will not delete the beats inside.'
   },
   beatGrid: {
     order: 'Order',

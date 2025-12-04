@@ -1,4 +1,4 @@
-import type { Project, Beat, BeatType } from '@/domain/entities'
+import type { Project, Beat, BeatType, BeatGroup } from '@/domain/entities'
 import { storageService } from '@/infrastructure/LocalStorageService'
 import { v4 as uuidv4 } from '@/utils/uuid'
 import { t, getBeatTypeName, getNewBeatTitle } from '@/i18n/helpers'
@@ -16,6 +16,10 @@ export class ProjectService {
   loadCurrentProject(): Project {
     const saved = this.storageService.loadProject()
     if (saved) {
+      // Migrate old projects that don't have beatGroups
+      if (!saved.beatGroups) {
+        saved.beatGroups = []
+      }
       return saved
     }
 
@@ -43,6 +47,7 @@ export class ProjectService {
       description,
       beats: [],
       beatTypes: this.getDefaultBeatTypes(),
+      beatGroups: [],
       createdAt: now,
       updatedAt: now
     }
@@ -141,6 +146,7 @@ export class ProjectService {
       description: t('examples.projectDescription'),
       beats,
       beatTypes,
+      beatGroups: [],
       createdAt: now,
       updatedAt: now
     }
@@ -634,6 +640,108 @@ export class ProjectService {
     }
     
     return false
+  }
+
+  /**
+   * Create a new beat group
+   */
+  createBeatGroup(project: Project, name: string, beatIds: string[] = []): BeatGroup {
+    const now = new Date().toISOString()
+    
+    // Calculate next order number
+    const maxOrder = project.beatGroups.reduce((max, g) => Math.max(max, g.order), 0)
+    const nextOrder = maxOrder + 1
+    
+    // Calculate initial position (simple horizontal layout)
+    const maxX = project.beatGroups.reduce((max, g) => Math.max(max, g.position.x), 0)
+    const nextX = maxX > 0 ? maxX + 500 : 100
+    
+    return {
+      id: uuidv4(),
+      name,
+      description: '',
+      beatIds,
+      position: { x: nextX, y: 50 },
+      collapsed: false,
+      order: nextOrder,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  /**
+   * Add a group to the project
+   */
+  addBeatGroup(project: Project, group: BeatGroup): Project {
+    return {
+      ...project,
+      beatGroups: [...project.beatGroups, group],
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Update an existing beat group
+   */
+  updateBeatGroup(project: Project, groupId: string, updates: Partial<BeatGroup>): Project {
+    return {
+      ...project,
+      beatGroups: project.beatGroups.map(group =>
+        group.id === groupId
+          ? { ...group, ...updates, updatedAt: new Date().toISOString() }
+          : group
+      ),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Delete a beat group
+   */
+  deleteBeatGroup(project: Project, groupId: string): Project {
+    return {
+      ...project,
+      beatGroups: project.beatGroups.filter(group => group.id !== groupId),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Add beats to a group
+   */
+  addBeatsToGroup(project: Project, groupId: string, beatIds: string[]): Project {
+    return {
+      ...project,
+      beatGroups: project.beatGroups.map(group =>
+        group.id === groupId
+          ? { 
+              ...group, 
+              beatIds: [...new Set([...group.beatIds, ...beatIds])], // Remove duplicates
+              updatedAt: new Date().toISOString() 
+            }
+          : group
+      ),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Remove beats from a group
+   */
+  removeBeatsFromGroup(project: Project, groupId: string, beatIds: string[]): Project {
+    return {
+      ...project,
+      beatGroups: project.beatGroups.map(group =>
+        group.id === groupId
+          ? { 
+              ...group, 
+              beatIds: group.beatIds.filter(id => !beatIds.includes(id)),
+              updatedAt: new Date().toISOString() 
+            }
+          : group
+      ),
+      updatedAt: new Date().toISOString()
+    }
   }
 
   // TODO: Implement export to JSON

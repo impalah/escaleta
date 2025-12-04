@@ -43,6 +43,20 @@ export interface Project {
   description: string
   beats: Beat[]
   beatTypes: BeatType[]
+  beatGroups: BeatGroup[] // User-defined groups
+  createdAt: string
+  updatedAt: string
+}
+
+export interface BeatGroup {
+  id: string
+  name: string
+  description?: string
+  color?: string // Hex color for group visualization (optional)
+  beatIds: string[] // IDs of beats that belong to this group
+  position: { x: number; y: number } // Visual position on canvas
+  collapsed: boolean // Whether the group is collapsed in the UI
+  order: number // Display order
   createdAt: string
   updatedAt: string
 }

@@ -59,6 +59,11 @@
           :beat-types="beatTypes"
           @update="handleBeatUpdate"
         />
+        <GroupPropertiesForm
+          v-else-if="selectedEntity?.type === 'group'"
+          :group="selectedEntity.data as BeatGroup"
+          @update="handleGroupUpdate"
+        />
         <div v-else class="empty-state">
           <v-icon size="64" color="grey-lighten-1">mdi-information-outline</v-icon>
           <p class="text-grey">Selecciona un elemento para editar sus propiedades</p>
@@ -81,15 +86,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Beat, BeatType, Project } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
 import ProjectPropertiesForm from './ProjectPropertiesForm.vue'
 import BeatPropertiesForm from './BeatPropertiesForm.vue'
+import GroupPropertiesForm from './GroupPropertiesForm.vue'
 
 const { t } = useI18n()
 
 interface SelectedEntity {
-  type: 'project' | 'beat'
-  data: Project | Beat
+  type: 'project' | 'beat' | 'group'
+  data: Project | Beat | BeatGroup
 }
 
 const props = defineProps<{
@@ -100,6 +106,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   updateProject: [project: Project]
   updateBeat: [beat: Beat]
+  updateGroup: [group: BeatGroup]
 }>()
 
 // Panel state
@@ -123,6 +130,9 @@ const tabText = computed(() => {
   } else if (props.selectedEntity.type === 'beat') {
     const beatData = props.selectedEntity.data as Beat
     return `BEAT - ${beatData.title}`
+  } else if (props.selectedEntity.type === 'group') {
+    const groupData = props.selectedEntity.data as BeatGroup
+    return `${t('propertiesPanel.group').toUpperCase()} - ${groupData.name}`
   }
   
   return t('propertiesPanel.project').toUpperCase()
@@ -155,6 +165,10 @@ function handleProjectUpdate(project: Project) {
 
 function handleBeatUpdate(beat: Beat) {
   emit('updateBeat', beat)
+}
+
+function handleGroupUpdate(group: BeatGroup) {
+  emit('updateGroup', group)
 }
 
 // Resize functionality
