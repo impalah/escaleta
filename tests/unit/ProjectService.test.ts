@@ -607,5 +607,116 @@ describe('ProjectService', () => {
       
       expect(updated.beatGroups[0].name).toBe('Updated Name')
     })
+
+    it('should insert beat into group at specific position (new beat to group)', () => {
+      const project = service.createExampleProject()
+      const [beat1, beat2, beat3, beat4] = project.beats
+      
+      // Create group with 3 beats
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
+      const groupId = updated.beatGroups[0].id
+      
+      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId)
+      
+      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat2.id, beat3.id])
+      
+      // Insert beat4 before beat2 (index 1)
+      updated = service.insertBeatIntoGroupAtPosition(updated, beat4.id, beat2.id, groupId)
+      
+      // Check order: beat1, beat4, beat2, beat3
+      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat4.id, beat2.id, beat3.id])
+      
+      // Check positions are correct
+      const updatedBeat4 = updated.beats.find(b => b.id === beat4.id)
+      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
+      
+      expect(updatedBeat4?.position.x).toBe(100) // Group X
+      expect(updatedBeat4?.position.y).toBe(260 + 90) // Second position (index 1)
+      expect(updatedBeat2?.position.y).toBe(260 + 90 + 90) // Third position (index 2)
+    })
+
+    it('should reorder beat within same group', () => {
+      const project = service.createExampleProject()
+      const [beat1, beat2, beat3] = project.beats
+      
+      // Create group with 3 beats
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
+      const groupId = updated.beatGroups[0].id
+      
+      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId)
+      
+      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat2.id, beat3.id])
+      
+      // Move beat3 to before beat1 (beginning)
+      updated = service.insertBeatIntoGroupAtPosition(updated, beat3.id, beat1.id, groupId)
+      
+      // Check order: beat3, beat1, beat2
+      expect(updated.beatGroups[0].beatIds).toEqual([beat3.id, beat1.id, beat2.id])
+      expect(updated.beatGroups[0].beatIds.length).toBe(3) // No duplicates
+    })
+
+    it('should move beat from one group to another at specific position', () => {
+      const project = service.createExampleProject()
+      const [beat1, beat2, beat3, beat4] = project.beats
+      
+      // Create two groups
+      const group1 = service.createBeatGroup(project, 'Group 1')
+      let updated = service.addBeatGroup(project, { ...group1, position: { x: 100, y: 200 } })
+      const groupId1 = updated.beatGroups[0].id
+      
+      const group2 = service.createBeatGroup(updated, 'Group 2')
+      updated = service.addBeatGroup(updated, { ...group2, position: { x: 600, y: 200 } })
+      const groupId2 = updated.beatGroups[1].id
+      
+      // Add beats to group1
+      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId1)
+      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId1)
+      
+      // Add beats to group2
+      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId2)
+      updated = service.dropBeatIntoGroup(updated, beat4.id, groupId2)
+      
+      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat2.id])
+      expect(updated.beatGroups[1].beatIds).toEqual([beat3.id, beat4.id])
+      
+      // Move beat2 from group1 to group2, insert before beat4
+      updated = service.insertBeatIntoGroupAtPosition(updated, beat2.id, beat4.id, groupId2)
+      
+      // Check group1 only has beat1
+      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id])
+      
+      // Check group2 has beat3, beat2, beat4 in that order
+      expect(updated.beatGroups[1].beatIds).toEqual([beat3.id, beat2.id, beat4.id])
+      
+      // Check beat2 position matches group2
+      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
+      expect(updatedBeat2?.position.x).toBe(600) // Group 2 X
+    })
+
+    it('should handle inserting beat at same position (no-op)', () => {
+      const project = service.createExampleProject()
+      const [beat1, beat2] = project.beats
+      
+      // Create group with 2 beats
+      const group = service.createBeatGroup(project, 'Test Group')
+      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
+      const groupId = updated.beatGroups[0].id
+      
+      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
+      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
+      
+      // Try to insert beat1 at its own position
+      const before = updated.beatGroups[0].beatIds
+      updated = service.insertBeatIntoGroupAtPosition(updated, beat1.id, beat1.id, groupId)
+      
+      // Should remain unchanged
+      expect(updated.beatGroups[0].beatIds).toEqual(before)
+    })
   })
 })

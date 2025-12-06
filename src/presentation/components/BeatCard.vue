@@ -1,6 +1,6 @@
 <template>
   <div class="beat-card-wrapper" 
-    :class="{ 'is-dragging': isDragging }"
+    :class="{ 'is-dragging': isDragging, 'beat-hovered': isHovered }"
     :data-beat-id="beat.id"
     :style="{
     left: `${beat.position.x}px`,
@@ -60,6 +60,7 @@ const props = defineProps<{
   beat: Beat
   beatType: BeatType | undefined
   isGroupDragging?: boolean // True when entire group is being dragged
+  isHovered?: boolean // True when another beat is being dragged over this beat
 }>()
 
 const emit = defineEmits<{
@@ -235,12 +236,18 @@ function getContrastColor(hexColor: string | undefined): string {
 .beat-card-wrapper {
   position: absolute;
   width: 400px;
-  transition: left 0.3s ease-out, top 0.3s ease-out;
+  transition: none; /* No animation when moving */
 }
 
 .beat-card-wrapper.is-dragging,
 .beat-card-wrapper.no-transition {
   transition: none; /* Disable transition during active drag or group movement */
+}
+
+.beat-card-wrapper.beat-hovered .beat-card {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 6px 20px rgba(0, 0, 0, 0.3) !important;
 }
 
 .beat-card {

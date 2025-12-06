@@ -198,7 +198,6 @@ function handleDelete(event: Event) {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   user-select: none;
-  transition: box-shadow 0.2s ease;
   z-index: 5; /* Above beats (z-index: 2) but below dragging beats */
 }
 
@@ -256,7 +255,6 @@ function handleDelete(event: Event) {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
   padding: 0;
 }
 
@@ -273,6 +271,5 @@ function handleDelete(event: Event) {
   font-size: 24px;
   font-weight: 700;
   line-height: 1;
-  transition: color 0.2s ease;
 }
 </style>

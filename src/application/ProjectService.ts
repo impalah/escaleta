@@ -852,6 +852,105 @@ export class ProjectService {
   }
 
   /**
+   * Insert a beat into a group at a specific position (before the target beat)
+   * The source beat takes the position of the target beat, and the target + all beats after it shift down
+   */
+  insertBeatIntoGroupAtPosition(
+    project: Project, 
+    sourceBeatId: string, 
+    targetBeatId: string, 
+    groupId: string
+  ): Project {
+    const GAP = 10
+    const GROUP_HEIGHT = 50
+    const BEAT_HEIGHT = 80
+    
+    const group = project.beatGroups.find(g => g.id === groupId)
+    if (!group) return project
+
+    // Find target position
+    const targetIndex = group.beatIds.indexOf(targetBeatId)
+    if (targetIndex === -1) return project // Target not in group
+
+    // Remove source beat from its current group (if any)
+    const sourceGroup = this.getGroupForBeat(project, sourceBeatId)
+    if (sourceGroup && sourceGroup.id !== groupId) {
+      // Remove from different group
+      project = this.removeBeatFromGroup(project, sourceBeatId, sourceGroup.id)
+    } else if (sourceGroup && sourceGroup.id === groupId) {
+      // Moving within same group
+      const currentIndex = group.beatIds.indexOf(sourceBeatId)
+      if (currentIndex === targetIndex) return project // Already at target position
+      
+      // Remove from current position
+      const tempBeatIds = group.beatIds.filter(id => id !== sourceBeatId)
+      // Adjust target index if we removed a beat before it
+      const adjustedTargetIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex
+      
+      // Insert at new position
+      tempBeatIds.splice(adjustedTargetIndex, 0, sourceBeatId)
+      
+      // Reposition all beats in group
+      const updatedBeats = project.beats.map(beat => {
+        const indexInGroup = tempBeatIds.indexOf(beat.id)
+        if (indexInGroup === -1) return beat
+        
+        const yPosition = group.position.y + GROUP_HEIGHT + GAP + (indexInGroup * (BEAT_HEIGHT + GAP))
+        return {
+          ...beat,
+          position: {
+            x: group.position.x,
+            y: yPosition
+          },
+          updatedAt: new Date().toISOString()
+        }
+      })
+      
+      return {
+        ...project,
+        beats: updatedBeats,
+        beatGroups: project.beatGroups.map(g =>
+          g.id === groupId
+            ? { ...g, beatIds: tempBeatIds, updatedAt: new Date().toISOString() }
+            : g
+        ),
+        updatedAt: new Date().toISOString()
+      }
+    }
+
+    // Source beat is not in any group - insert it
+    const updatedBeatIds = [...group.beatIds]
+    updatedBeatIds.splice(targetIndex, 0, sourceBeatId)
+
+    // Reposition ALL beats in the group
+    const updatedBeats = project.beats.map(beat => {
+      const indexInGroup = updatedBeatIds.indexOf(beat.id)
+      if (indexInGroup === -1) return beat
+      
+      const yPosition = group.position.y + GROUP_HEIGHT + GAP + (indexInGroup * (BEAT_HEIGHT + GAP))
+      return {
+        ...beat,
+        position: {
+          x: group.position.x,
+          y: yPosition
+        },
+        updatedAt: new Date().toISOString()
+      }
+    })
+
+    return {
+      ...project,
+      beats: updatedBeats,
+      beatGroups: project.beatGroups.map(g =>
+        g.id === groupId
+          ? { ...g, beatIds: updatedBeatIds, updatedAt: new Date().toISOString() }
+          : g
+      ),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
    * Order beat IDs by their chain connections (first to last)
    */
   private orderBeatChain(project: Project, beatIds: string[]): string[] {

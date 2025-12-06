@@ -150,6 +150,7 @@
           :beat="beat"
           :beat-type="getBeatType(beat.typeId)"
           :is-group-dragging="isDraggingGroup"
+          :is-hovered="hoveredBeatId === beat.id"
           @click="selectBeat(beat)"
           @dragstart="handleBeatDragStart"
           @dragmove="handleBeatDragMove"
@@ -242,6 +243,9 @@ const groupDragStartPosition = ref({ x: 0, y: 0 })
 
 // Beat-to-Group hover state (for highlighting groups during beat drag)
 const hoveredGroupId = ref<string | null>(null)
+
+// Beat-to-Beat hover state (for highlighting beats in groups during beat drag)
+const hoveredBeatId = ref<string | null>(null)
 
 // Constants
 const BEAT_HEIGHT = 80 // Must match constant in ProjectService
@@ -519,13 +523,43 @@ function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
 function handleBeatDragEnd(beatId: string) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
-  // Check if dropped into a BeatGroup
+  // Check if dropped onto a beat within a group (higher priority than group header)
+  if (hoveredBeatId.value) {
+    const targetBeat = project.value.beats.find(b => b.id === hoveredBeatId.value)
+    if (targetBeat) {
+      // Find which group the target beat belongs to
+      const targetGroup = projectService.getGroupForBeat(project.value, hoveredBeatId.value)
+      if (targetGroup) {
+        // Insert source beat at target beat's position
+        project.value = projectService.insertBeatIntoGroupAtPosition(
+          project.value,
+          beatId,
+          hoveredBeatId.value,
+          targetGroup.id
+        )
+        
+        // Clear drag state
+        isDraggingBeat.value = false
+        draggingBeatId.value = null
+        hoveredBeatId.value = null
+        hoveredGroupId.value = null
+        
+        // Save project
+        projectService.saveCurrentProject(project.value)
+        console.log('Beat inserted into group at specific position')
+        return
+      }
+    }
+  }
+  
+  // Check if dropped into a BeatGroup header (append to end)
   if (hoveredGroupId.value) {
     project.value = projectService.dropBeatIntoGroup(project.value, beatId, hoveredGroupId.value)
     
     // Clear drag state
     isDraggingBeat.value = false
     draggingBeatId.value = null
+    hoveredBeatId.value = null
     hoveredGroupId.value = null
     
     // Save project
@@ -537,6 +571,7 @@ function handleBeatDragEnd(beatId: string) {
   // Clear drag state
   isDraggingBeat.value = false
   draggingBeatId.value = null
+  hoveredBeatId.value = null
   hoveredGroupId.value = null
   
   // Save project with updated position
@@ -607,7 +642,7 @@ function handleGroupDragEnd(groupId: string) {
   console.log('Group position saved')
 }
 
-// Detect if dragged beat is over a BeatGroup
+// Detect if dragged beat is over a BeatGroup or Beat in group
 function detectGroupHover(beatX: number, beatY: number) {
   const BEAT_WIDTH = 400
   const BEAT_HEIGHT = 80
@@ -619,11 +654,21 @@ function detectGroupHover(beatX: number, beatY: number) {
   const beatTop = beatY
   const beatBottom = beatY + BEAT_HEIGHT
   
+  // Don't highlight beats if we're dragging the entire group
+  if (isDraggingGroup.value) {
+    hoveredBeatId.value = null
+    hoveredGroupId.value = null
+    return
+  }
+  
   // First check if beat is over ANY beat in ANY group
   for (const group of project.value.beatGroups) {
     if (group.beatIds.length === 0) continue
     
     for (const beatId of group.beatIds) {
+      // Skip if this is the beat being dragged
+      if (beatId === draggingBeatId.value) continue
+      
       const groupBeat = project.value.beats.find((b: Beat) => b.id === beatId)
       if (!groupBeat) continue
       
@@ -640,8 +685,8 @@ function detectGroupHover(beatX: number, beatY: number) {
       )
       
       if (hasOverlapWithBeat) {
-        // We're over a beat in the group, don't activate group hover
-        // (Drop on beats in group not implemented yet)
+        // We're over a beat in the group - highlight it!
+        hoveredBeatId.value = beatId
         hoveredGroupId.value = null
         return
       }
@@ -668,12 +713,14 @@ function detectGroupHover(beatX: number, beatY: number) {
     
     if (hasOverlap) {
       hoveredGroupId.value = group.id
+      hoveredBeatId.value = null
       return
     }
   }
   
   // No collision found
   hoveredGroupId.value = null
+  hoveredBeatId.value = null
 }
 
 // Group editing handlers
