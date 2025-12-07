@@ -32,6 +32,7 @@ const props = defineProps<{
   group: BeatGroup
   zoom?: number
   isHovered?: boolean
+  zIndex?: number // Assigned z-index from parent
 }>()
 
 const emit = defineEmits<{
@@ -54,7 +55,8 @@ const groupStyle = computed(() => {
     top: `${props.group.position.y}px`,
     transform: `scale(${props.zoom || 1})`,
     transformOrigin: 'top left' as const,
-    cursor: isDragging.value ? 'grabbing' : 'grab'
+    cursor: isDragging.value ? 'grabbing' : 'grab',
+    zIndex: props.zIndex || 1000 // Use assigned z-index or fallback
   }
   return baseStyle
 })
@@ -198,7 +200,7 @@ function handleDelete(event: Event) {
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   user-select: none;
-  z-index: 5; /* Above beats (z-index: 2) but below dragging beats */
+  /* z-index is now dynamic via inline style */
 }
 
 .beat-group-card:hover {

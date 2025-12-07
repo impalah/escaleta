@@ -97,6 +97,11 @@
         <v-icon>mdi-group</v-icon>
         <v-tooltip activator="parent" location="bottom">{{ t('toolbar.createGroup') }}</v-tooltip>
       </v-btn>
+
+      <v-btn icon color="info" @click="handleCreateBlock" aria-label="Create block">
+        <v-icon>mdi-square</v-icon>
+        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.createBlock') }}</v-tooltip>
+      </v-btn>
     </v-app-bar>
 
     <!-- Beat Canvas (shown in canvas mode) -->
@@ -121,13 +126,27 @@
           transformOrigin: 'top left' 
         }"
       >
-        <!-- Beat Group Cards (rendered first, lower z-index) -->
+        <!-- Block Cards (rendered first, lowest z-index) -->
+        <BlockCard
+          v-for="block in project.blocks"
+          :key="block.id"
+          :block="block"
+          :zoom="zoom"
+          @click="selectBlock"
+          @dragstart="handleBlockDragStart"
+          @dragmove="handleBlockDragMove"
+          @dragend="handleBlockDragEnd"
+          @delete="handleDeleteBlock"
+        />
+
+        <!-- Beat Group Cards (rendered second, higher z-index than blocks) -->
         <BeatGroupCard
           v-for="group in project.beatGroups"
           :key="group.id"
           :group="group"
           :zoom="zoom"
           :is-hovered="hoveredGroupId === group.id"
+          :z-index="getOrAssignZIndex(group.id, isDraggingGroup && draggingGroupId === group.id)"
           @click="selectGroup"
           @dragstart="handleGroupDragStart"
           @dragmove="handleGroupDragMove"
@@ -151,6 +170,12 @@
           :beat-type="getBeatType(beat.typeId)"
           :is-group-dragging="isDraggingGroup"
           :is-hovered="hoveredBeatId === beat.id"
+          :is-in-group="projectService.belongsToBeatGroup(project, beat.id)"
+          :z-index="
+            isDraggingBeat && draggingBeatId === beat.id
+              ? getOrAssignZIndex(beat.id, true)
+              : getGroupZIndex(beat.id) ?? getOrAssignZIndex(beat.id, false)
+          "
           @click="selectBeat(beat)"
           @dragstart="handleBeatDragStart"
           @dragmove="handleBeatDragMove"
@@ -176,6 +201,7 @@
       @update-project="handleUpdateProject"
       @update-beat="handleUpdateBeat"
       @update-group="handleUpdateGroup"
+      @update-block="handleUpdateBlock"
     />
 
     <!-- New Beat Dialog -->
@@ -191,10 +217,11 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
-import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
+import BlockCard from '@/presentation/components/BlockCard.vue'
 import GroupConnectionLine from '@/presentation/components/GroupConnectionLine.vue'
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
@@ -214,8 +241,8 @@ const canvasRef = ref<HTMLElement | null>(null)
 
 // Selected entity for properties panel
 interface SelectedEntity {
-  type: 'project' | 'beat'
-  data: Project | Beat
+  type: 'project' | 'beat' | 'group' | 'block'
+  data: Project | Beat | BeatGroup | Block
 }
 const selectedEntity = ref<SelectedEntity | null>({
   type: 'project',
@@ -241,11 +268,20 @@ const isDraggingGroup = ref(false)
 const draggingGroupId = ref<string | null>(null)
 const groupDragStartPosition = ref({ x: 0, y: 0 })
 
+// Block drag state
+const isDraggingBlock = ref(false)
+const draggingBlockId = ref<string | null>(null)
+const blockDragStartPosition = ref({ x: 0, y: 0 })
+
 // Beat-to-Group hover state (for highlighting groups during beat drag)
 const hoveredGroupId = ref<string | null>(null)
 
 // Beat-to-Beat hover state (for highlighting beats in groups during beat drag)
 const hoveredBeatId = ref<string | null>(null)
+
+// Z-index stack management
+// Blocks: base 1, Beats/Groups: dynamic (1000+), Dragging: max + 10000
+const elementZIndexMap = ref<Map<string, number>>(new Map())
 
 // Constants
 const BEAT_HEIGHT = 80 // Must match constant in ProjectService
@@ -283,6 +319,41 @@ onMounted(() => {
 
 function getBeatType(typeId: string): BeatType | undefined {
   return project.value.beatTypes.find(t => t.id === typeId)
+}
+
+function getOrAssignZIndex(elementId: string, isDragging: boolean): number {
+  // If dragging, return max existing z-index + 10000
+  if (isDragging) {
+    const maxZIndex = Math.max(0, ...Array.from(elementZIndexMap.value.values()))
+    return maxZIndex + 10000
+  }
+  
+  // Get existing z-index or assign a new one
+  if (!elementZIndexMap.value.has(elementId)) {
+    // Find the current maximum z-index to ensure new elements are on top
+    const maxZIndex = Math.max(999, ...Array.from(elementZIndexMap.value.values()))
+    elementZIndexMap.value.set(elementId, maxZIndex + 1)
+  }
+  
+  return elementZIndexMap.value.get(elementId)!
+}
+
+function bringToFront(elementId: string) {
+  // Find the current maximum z-index and assign a higher one
+  const maxZIndex = Math.max(999, ...Array.from(elementZIndexMap.value.values()))
+  elementZIndexMap.value.set(elementId, maxZIndex + 1)
+  
+  console.log(`Brought ${elementId} to front with z-index: ${maxZIndex + 1}`)
+}
+
+function getGroupZIndex(beatId: string): number | undefined {
+  const group = projectService.getGroupForBeat(project.value, beatId)
+  if (!group) {
+    return undefined
+  }
+  
+  // Return the group's z-index so beats inherit it
+  return getOrAssignZIndex(group.id, false)
 }
 
 function selectBeat(beat: Beat) {
@@ -382,6 +453,17 @@ function handleCreateGroup() {
   console.log('Group created:', newGroup.name)
 }
 
+function handleCreateBlock() {
+  const blockName = prompt(t('toolbar.createBlock'), 'New Block')
+  if (!blockName) return
+  
+  const newBlock = projectService.createBlock(project.value, blockName)
+  project.value = projectService.addBlock(project.value, newBlock)
+  projectService.saveCurrentProject(project.value)
+  
+  console.log('Block created:', newBlock.name)
+}
+
 function handleZoomIn() {
   zoom.value = Math.min(zoom.value + 0.1, 2)
 }
@@ -392,8 +474,8 @@ function handleZoomOut() {
 
 // Canvas panning handlers
 function handleCanvasMouseDown(event: MouseEvent) {
-  // Don't pan if dragging a beat or group
-  if (isDraggingBeat.value || isDraggingGroup.value) return
+  // Don't pan if dragging a beat, group, or block
+  if (isDraggingBeat.value || isDraggingGroup.value || isDraggingBlock.value) return
   
   const target = event.target as HTMLElement
   if (target.closest('[data-testid="beat-card"]') || target.closest('[data-group-id]')) {
@@ -588,6 +670,10 @@ function handleGroupDragStart(groupId: string) {
   if (!group) return
   
   groupDragStartPosition.value = { ...group.position }
+  
+  // Bring group to front when starting to drag
+  bringToFront(groupId)
+  
   console.log('Group drag started:', group.name)
 }
 
@@ -640,6 +726,49 @@ function handleGroupDragEnd(groupId: string) {
   // Save project with updated group position
   projectService.saveCurrentProject(project.value)
   console.log('Group position saved')
+}
+
+// Block drag handlers
+function handleBlockDragStart(blockId: string) {
+  isDraggingBlock.value = true
+  draggingBlockId.value = blockId
+  
+  const block = project.value.blocks.find(b => b.id === blockId)
+  if (!block) return
+  
+  blockDragStartPosition.value = { ...block.position }
+  console.log('Block drag started:', block.name)
+}
+
+function handleBlockDragMove(blockId: string, deltaX: number, deltaY: number) {
+  if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
+  
+  const block = project.value.blocks.find(b => b.id === blockId)
+  if (!block) return
+  
+  // Calculate new position accounting for zoom
+  const deltaXScaled = deltaX / zoom.value
+  const deltaYScaled = deltaY / zoom.value
+  
+  // Add delta to current position
+  const newX = block.position.x + deltaXScaled
+  const newY = block.position.y + deltaYScaled
+  
+  // Update block position
+  project.value = projectService.updateBlock(project.value, blockId, {
+    position: { x: newX, y: newY }
+  })
+}
+
+function handleBlockDragEnd(blockId: string) {
+  if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
+  
+  isDraggingBlock.value = false
+  draggingBlockId.value = null
+  
+  // Save project with updated block position
+  projectService.saveCurrentProject(project.value)
+  console.log('Block position saved')
 }
 
 // Detect if dragged beat is over a BeatGroup or Beat in group
@@ -732,6 +861,15 @@ function selectGroup(group: BeatGroup) {
   console.log('Group selected:', group.name)
 }
 
+// Block editing handlers
+function selectBlock(block: Block) {
+  selectedEntity.value = {
+    type: 'block',
+    data: block
+  }
+  console.log('Block selected:', block.name)
+}
+
 function handleUpdateGroup(updatedGroup: BeatGroup) {
   project.value = projectService.updateBeatGroup(project.value, updatedGroup.id, updatedGroup)
   projectService.saveCurrentProject(project.value)
@@ -744,6 +882,20 @@ function handleUpdateGroup(updatedGroup: BeatGroup) {
     }
   }
   console.log('Group updated:', updatedGroup.name)
+}
+
+function handleUpdateBlock(updatedBlock: Block) {
+  project.value = projectService.updateBlock(project.value, updatedBlock.id, updatedBlock)
+  projectService.saveCurrentProject(project.value)
+  
+  // Update selected entity with the new data
+  if (selectedEntity.value?.type === 'block' && selectedEntity.value.data.id === updatedBlock.id) {
+    selectedEntity.value = {
+      type: 'block',
+      data: updatedBlock
+    }
+  }
+  console.log('Block updated:', updatedBlock.name)
 }
 
 function handleDeleteBeat(beatId: string) {
@@ -795,6 +947,27 @@ function handleDeleteGroup(groupId: string) {
   }
   
   console.log('Group deleted:', groupId)
+}
+
+function handleDeleteBlock(blockId: string) {
+  const block = project.value.blocks.find((b: Block) => b.id === blockId)
+  if (!block) return
+  
+  const confirmed = confirm(t('blockProperties.deleteConfirm', { name: block.name }))
+  if (!confirmed) return
+  
+  project.value = projectService.deleteBlock(project.value, blockId)
+  projectService.saveCurrentProject(project.value)
+  
+  // Clear selection if deleted block was selected
+  if (selectedEntity.value?.type === 'block') {
+    selectedEntity.value = {
+      type: 'project',
+      data: project.value
+    }
+  }
+  
+  console.log('Block deleted:', blockId)
 }
 
 </script>

@@ -3,7 +3,8 @@ export default {
     cancel: 'Cancelar',
     save: 'Guardar',
     delete: 'Eliminar',
-    edit: 'Editar'
+    edit: 'Editar',
+    none: 'Ninguno'
   },
   app: {
     title: 'Escaleta',
@@ -22,6 +23,7 @@ export default {
     zoomOut: 'Zoom -',
     addBeat: 'Añadir Beat',
     createGroup: 'Crear Grupo',
+    createBlock: 'Crear Block',
     language: 'Idioma'
   },
   beatTypes: {
@@ -86,6 +88,16 @@ export default {
     updatedAt: 'Última Actualización',
     deleteConfirmation: '¿Estás seguro de que deseas eliminar el grupo "{name}"? Esto no eliminará los beats del interior.',
     deleteConfirm: '¿Estás seguro de que deseas eliminar el grupo "{name}"?'
+  },
+  blockProperties: {
+    name: 'Nombre del Block',
+    description: 'Descripción',
+    backgroundColor: 'Color de Fondo',
+    order: 'Orden',
+    groups: 'Grupos en el Block',
+    createdAt: 'Fecha de Creación',
+    updatedAt: 'Última Actualización',
+    deleteConfirm: '¿Estás seguro de que deseas eliminar el block "{name}"?'
   },
   beatGrid: {
     order: 'Orden',

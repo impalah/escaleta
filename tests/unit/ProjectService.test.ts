@@ -719,4 +719,74 @@ describe('ProjectService', () => {
       expect(updated.beatGroups[0].beatIds).toEqual(before)
     })
   })
+
+  describe('Block Operations', () => {
+    it('should create a new block with default properties', () => {
+      const project = service.createExampleProject()
+      const block = service.createBlock(project, 'Test Block')
+
+      expect(block.id).toBeDefined()
+      expect(block.name).toBe('Test Block')
+      expect(block.description).toBe('')
+      expect(block.backgroundColor).toMatch(/^#[0-9A-F]{6}$/i)
+      expect(block.position).toBeDefined()
+      expect(block.size).toEqual({ width: 600, height: 400 })
+      expect(block.groupIds).toEqual([])
+      expect(block.order).toBe(1) // First block has order 1
+    })
+
+    it('should add a block to project', () => {
+      const project = service.createExampleProject()
+      const block = service.createBlock(project, 'Test Block')
+      const updated = service.addBlock(project, block)
+
+      expect(updated.blocks).toHaveLength(1)
+      expect(updated.blocks[0].id).toBe(block.id)
+      expect(updated.blocks[0].name).toBe('Test Block')
+    })
+
+    it('should update a block', () => {
+      const project = service.createExampleProject()
+      const block = service.createBlock(project, 'Test Block')
+      let updated = service.addBlock(project, block)
+
+      updated = service.updateBlock(updated, block.id, {
+        name: 'Updated Block',
+        description: 'New description',
+        backgroundColor: '#FF0000'
+      })
+
+      const updatedBlock = updated.blocks.find(b => b.id === block.id)
+      expect(updatedBlock).toBeDefined()
+      expect(updatedBlock!.name).toBe('Updated Block')
+      expect(updatedBlock!.description).toBe('New description')
+      expect(updatedBlock!.backgroundColor).toBe('#FF0000')
+    })
+
+    it('should delete a block', () => {
+      const project = service.createExampleProject()
+      const block = service.createBlock(project, 'Test Block')
+      let updated = service.addBlock(project, block)
+
+      expect(updated.blocks).toHaveLength(1)
+
+      updated = service.deleteBlock(updated, block.id)
+
+      expect(updated.blocks).toHaveLength(0)
+    })
+
+    it('should create blocks at grid positions', () => {
+      const project = service.createExampleProject()
+      const block1 = service.createBlock(project, 'Block 1')
+      const block2 = service.createBlock({ ...project, blocks: [block1] }, 'Block 2')
+      const block3 = service.createBlock({ ...project, blocks: [block1, block2] }, 'Block 3')
+
+      // First block at (50, 50)
+      expect(block1.position).toEqual({ x: 50, y: 50 })
+      // Second block at (750, 50) - 700px horizontal spacing
+      expect(block2.position).toEqual({ x: 750, y: 50 })
+      // Third block at (50, 550) - wraps to next row with 500px vertical spacing
+      expect(block3.position).toEqual({ x: 50, y: 550 })
+    })
+  })
 })

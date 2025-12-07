@@ -20,7 +20,7 @@ vi.mock('@/presentation/components/BeatCard.vue', () => ({
   default: {
     name: 'BeatCard',
     template: '<div class="beat-card">{{ beat.title }}</div>',
-    props: ['beat', 'beatType', 'isGroupDragging'],
+    props: ['beat', 'beatType', 'isGroupDragging', 'isHovered', 'isInGroup', 'zIndex'],
     emits: ['click', 'dragstart', 'dragmove', 'dragend', 'delete']
   }
 }))
@@ -29,7 +29,7 @@ vi.mock('@/presentation/components/BeatGroupCard.vue', () => ({
   default: {
     name: 'BeatGroupCard',
     template: '<div class="beat-group-card">{{ group.name }}</div>',
-    props: ['group', 'zoom', 'isHovered'],
+    props: ['group', 'zoom', 'isHovered', 'zIndex'],
     emits: ['click', 'dragstart', 'dragmove', 'dragend', 'delete']
   }
 }))
@@ -136,6 +136,7 @@ vi.mock('@/application/ProjectService', () => ({
     })),
     getGroupForBeat: vi.fn(() => null),
     removeBeatFromGroup: vi.fn((project) => project),
+    belongsToBeatGroup: vi.fn(() => false), // Add belongsToBeatGroup mock
     deleteBeatGroup: vi.fn((project, groupId) => ({
       ...project,
       beatGroups: project.beatGroups.filter((g: { id: string }) => g.id !== groupId)

@@ -4,7 +4,8 @@
     :data-beat-id="beat.id"
     :style="{
     left: `${beat.position.x}px`,
-    top: `${beat.position.y}px`
+    top: `${beat.position.y}px`,
+    zIndex: zIndex ?? 1000
   }">
     <!-- Beat Card -->
     <v-card
@@ -61,6 +62,8 @@ const props = defineProps<{
   beatType: BeatType | undefined
   isGroupDragging?: boolean // True when entire group is being dragged
   isHovered?: boolean // True when another beat is being dragged over this beat
+  isInGroup?: boolean // True when beat belongs to a BeatGroup
+  zIndex?: number // Assigned z-index from parent (includes group inheritance)
 }>()
 
 const emit = defineEmits<{
@@ -268,7 +271,7 @@ function getContrastColor(hexColor: string | undefined): string {
   transform: scale(1.05);
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3) !important;
   transition: none;
-  z-index: 1000;
+  /* z-index is now on beat-card-wrapper via inline style */
 }
 
 .beat-title {

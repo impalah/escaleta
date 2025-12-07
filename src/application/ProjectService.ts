@@ -1,4 +1,4 @@
-import type { Project, Beat, BeatType, BeatGroup } from '@/domain/entities'
+import type { Project, Beat, BeatType, BeatGroup, Block } from '@/domain/entities'
 import { storageService } from '@/infrastructure/LocalStorageService'
 import { v4 as uuidv4 } from '@/utils/uuid'
 import { t, getBeatTypeName, getNewBeatTitle } from '@/i18n/helpers'
@@ -16,9 +16,12 @@ export class ProjectService {
   loadCurrentProject(): Project {
     const saved = this.storageService.loadProject()
     if (saved) {
-      // Migrate old projects that don't have beatGroups
+      // Migrate old projects that don't have beatGroups or blocks
       if (!saved.beatGroups) {
         saved.beatGroups = []
+      }
+      if (!saved.blocks) {
+        saved.blocks = []
       }
       return saved
     }
@@ -48,6 +51,7 @@ export class ProjectService {
       beats: [],
       beatTypes: this.getDefaultBeatTypes(),
       beatGroups: [],
+      blocks: [],
       createdAt: now,
       updatedAt: now
     }
@@ -147,6 +151,7 @@ export class ProjectService {
       beats,
       beatTypes,
       beatGroups: [],
+      blocks: [],
       createdAt: now,
       updatedAt: now
     }
@@ -1056,6 +1061,100 @@ export class ProjectService {
    */
   belongsToBeatGroup(project: Project, beatId: string): boolean {
     return project.beatGroups.some(g => g.beatIds.includes(beatId))
+  }
+
+  // ========== Block Management ==========
+
+  /**
+   * Create a new block
+   */
+  createBlock(project: Project, name: string): Block {
+    const now = new Date().toISOString()
+    
+    // Calculate next order number
+    const maxOrder = project.blocks.reduce((max, b) => Math.max(max, b.order), 0)
+    const nextOrder = maxOrder + 1
+    
+    // Calculate initial position in a grid layout
+    const blocksCount = project.blocks.length
+    const COLS = 2 // Number of blocks per row
+    const SPACING_X = 700
+    const SPACING_Y = 500
+    const START_X = 50
+    const START_Y = 50
+    
+    const col = blocksCount % COLS
+    const row = Math.floor(blocksCount / COLS)
+    
+    const nextX = START_X + (col * SPACING_X)
+    const nextY = START_Y + (row * SPACING_Y)
+    
+    // Default block size (fixed for now)
+    const DEFAULT_WIDTH = 600
+    const DEFAULT_HEIGHT = 400
+    
+    // Random background color (pastel colors)
+    const colors = [
+      '#E8F5E9', // Light Green
+      '#E3F2FD', // Light Blue
+      '#FFF3E0', // Light Orange
+      '#F3E5F5', // Light Purple
+      '#FCE4EC', // Light Pink
+      '#E0F2F1', // Light Teal
+      '#FFF9C4', // Light Yellow
+      '#EFEBE9'  // Light Brown
+    ]
+    const backgroundColor = colors[blocksCount % colors.length]
+    
+    return {
+      id: uuidv4(),
+      name,
+      description: '',
+      backgroundColor,
+      position: { x: nextX, y: nextY },
+      size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
+      groupIds: [],
+      order: nextOrder,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  /**
+   * Add a block to the project
+   */
+  addBlock(project: Project, block: Block): Project {
+    return {
+      ...project,
+      blocks: [...project.blocks, block],
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Update an existing block
+   */
+  updateBlock(project: Project, blockId: string, updates: Partial<Block>): Project {
+    return {
+      ...project,
+      blocks: project.blocks.map(block =>
+        block.id === blockId
+          ? { ...block, ...updates, updatedAt: new Date().toISOString() }
+          : block
+      ),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Delete a block
+   */
+  deleteBlock(project: Project, blockId: string): Project {
+    return {
+      ...project,
+      blocks: project.blocks.filter(block => block.id !== blockId),
+      updatedAt: new Date().toISOString()
+    }
   }
 
   // TODO: Implement export to JSON
