@@ -1,14 +1,16 @@
 <template>
   <div class="block-properties-form">
-    <h3 class="form-title">BLOCK</h3>
+    <h3 class="form-title">
+      BLOCK
+    </h3>
 
     <v-text-field
       v-model="localBlock.name"
       :label="t('blockProperties.name')"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-textarea
@@ -17,8 +19,8 @@
       variant="outlined"
       density="comfortable"
       rows="3"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -27,8 +29,8 @@
       variant="outlined"
       density="comfortable"
       type="color"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -37,8 +39,8 @@
       type="number"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-divider class="my-4" />
@@ -57,7 +59,6 @@
         <span class="info-value">{{ formatDate(localBlock.updatedAt) }}</span>
       </p>
     </div>
-
   </div>
 </template>
 

@@ -1,14 +1,16 @@
 <template>
   <div class="beat-properties-form">
-    <h3 class="form-title">{{ t('propertiesPanel.beat') }}</h3>
+    <h3 class="form-title">
+      {{ t('propertiesPanel.beat') }}
+    </h3>
 
     <v-text-field
       v-model="localBeat.title"
       :label="t('beatProperties.title')"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-select
@@ -17,8 +19,8 @@
       :label="t('beatProperties.type')"
       variant="outlined"
       density="comfortable"
-      @update:model-value="handleUpdate"
       class="mb-4"
+      @update:model-value="handleUpdate"
     >
       <template #prepend-inner>
         <v-icon :color="getSelectedBeatType()?.color">
@@ -33,8 +35,8 @@
       type="number"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -45,8 +47,8 @@
       placeholder="mm:ss.ms"
       :hint="t('beatProperties.eventDurationHint')"
       persistent-hint
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -57,8 +59,8 @@
       placeholder="hh:mm:ss.ms"
       :hint="t('beatProperties.eventStartTimeHint')"
       persistent-hint
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -68,8 +70,8 @@
       density="comfortable"
       :placeholder="t('beatProperties.sceneHint')"
       persistent-hint
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -78,8 +80,8 @@
       variant="outlined"
       density="comfortable"
       :placeholder="t('beatProperties.characterHint')"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -88,8 +90,8 @@
       variant="outlined"
       density="comfortable"
       :placeholder="t('beatProperties.cueHint')"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-combobox
@@ -102,8 +104,8 @@
       closable-chips
       :hint="t('beatProperties.assetsHint')"
       persistent-hint
-      @update:model-value="handleUpdate"
       class="mb-4"
+      @update:model-value="handleUpdate"
     />
 
     <v-textarea

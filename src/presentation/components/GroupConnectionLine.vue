@@ -1,5 +1,8 @@
 <template>
-  <svg class="group-connection-line" :style="{ pointerEvents: 'none' }">
+  <svg
+    class="group-connection-line"
+    :style="{ pointerEvents: 'none' }"
+  >
     <line
       :x1="startX"
       :y1="startY"

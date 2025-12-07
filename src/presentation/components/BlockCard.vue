@@ -1,6 +1,7 @@
 <template>
   <div
     class="block-card"
+    :class="{ 'is-hovered': isHovered }"
     :style="blockStyle"
     :data-block-id="block.id"
   >
@@ -14,9 +15,9 @@
       <div class="block-actions">
         <button
           class="delete-btn"
-          @click.stop="handleDelete"
           aria-label="Delete block"
           title="Delete block"
+          @click.stop="handleDelete"
         >
           <span class="delete-icon">×</span>
         </button>
@@ -32,6 +33,7 @@ import type { Block } from '@/domain/entities'
 const props = defineProps<{
   block: Block
   zoom?: number
+  isHovered?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -203,6 +205,12 @@ function handleDelete(event: Event) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   user-select: none;
   /* z-index is now dynamic via inline style */
+}
+
+.block-card.is-hovered {
+  outline: 3px solid #fbbf24;
+  outline-offset: 2px;
+  box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 6px 20px rgba(0, 0, 0, 0.3) !important;
 }
 
 .block-header {

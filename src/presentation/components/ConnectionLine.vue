@@ -1,5 +1,8 @@
 <template>
-  <svg class="connection-line" :style="{ pointerEvents: 'none' }">
+  <svg
+    class="connection-line"
+    :style="{ pointerEvents: 'none' }"
+  >
     <defs>
       <marker
         id="arrowhead"
@@ -9,7 +12,10 @@
         refY="4"
         orient="auto"
       >
-        <polygon points="0 0, 8 4, 0 8" fill="#666" />
+        <polygon
+          points="0 0, 8 4, 0 8"
+          fill="#666"
+        />
       </marker>
     </defs>
     <line

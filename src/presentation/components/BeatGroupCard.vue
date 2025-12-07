@@ -13,9 +13,9 @@
         <span class="group-badge">{{ group.beatIds.length }}</span>
         <button
           class="delete-btn"
-          @click.stop="handleDelete"
           aria-label="Delete group"
           title="Delete group"
+          @click.stop="handleDelete"
         >
           <span class="delete-icon">×</span>
         </button>

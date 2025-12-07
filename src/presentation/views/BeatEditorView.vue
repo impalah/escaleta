@@ -1,27 +1,60 @@
 <template>
-  <v-container fluid class="pa-0 fill-height">
+  <v-container
+    fluid
+    class="pa-0 fill-height"
+  >
     <!-- App Bar -->
-    <v-app-bar color="primary" density="compact" elevation="2">
+    <v-app-bar
+      color="primary"
+      density="compact"
+      elevation="2"
+    >
       <v-toolbar-title>{{ project.name }}</v-toolbar-title>
 
       <v-spacer />
 
       <!-- Toolbar buttons -->
-      <v-btn icon @click="handleNewProject" aria-label="New project">
+      <v-btn
+        icon
+        aria-label="New project"
+        @click="handleNewProject"
+      >
         <v-icon>mdi-file-plus</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.newProject') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.newProject') }}
+        </v-tooltip>
       </v-btn>
 
-      <v-btn icon @click="handleSave" aria-label="Save project">
+      <v-btn
+        icon
+        aria-label="Save project"
+        @click="handleSave"
+      >
         <v-icon>mdi-content-save</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.save') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.save') }}
+        </v-tooltip>
       </v-btn>
 
       <v-menu>
         <template #activator="{ props }">
-          <v-btn icon v-bind="props">
+          <v-btn
+            icon
+            v-bind="props"
+          >
             <v-icon>mdi-export</v-icon>
-            <v-tooltip activator="parent" location="bottom">{{ t('toolbar.export') }}</v-tooltip>
+            <v-tooltip
+              activator="parent"
+              location="bottom"
+            >
+              {{ t('toolbar.export') }}
+            </v-tooltip>
           </v-btn>
         </template>
         <v-list>
@@ -34,7 +67,10 @@
         </v-list>
       </v-menu>
 
-      <v-divider vertical class="mx-2" />
+      <v-divider
+        vertical
+        class="mx-2"
+      />
 
       <!-- View Mode Toggle -->
       <v-btn-toggle
@@ -44,36 +80,84 @@
         color="accent"
         class="mr-2"
       >
-        <v-btn value="canvas" size="small" aria-label="Canvas view">
+        <v-btn
+          value="canvas"
+          size="small"
+          aria-label="Canvas view"
+        >
           <v-icon>mdi-grid</v-icon>
-          <v-tooltip activator="parent" location="bottom">{{ t('toolbar.canvasView') }}</v-tooltip>
+          <v-tooltip
+            activator="parent"
+            location="bottom"
+          >
+            {{ t('toolbar.canvasView') }}
+          </v-tooltip>
         </v-btn>
-        <v-btn value="grid" size="small" aria-label="Grid view">
+        <v-btn
+          value="grid"
+          size="small"
+          aria-label="Grid view"
+        >
           <v-icon>mdi-view-list</v-icon>
-          <v-tooltip activator="parent" location="bottom">{{ t('toolbar.gridView') }}</v-tooltip>
+          <v-tooltip
+            activator="parent"
+            location="bottom"
+          >
+            {{ t('toolbar.gridView') }}
+          </v-tooltip>
         </v-btn>
       </v-btn-toggle>
 
-      <v-divider vertical class="mx-2" />
+      <v-divider
+        vertical
+        class="mx-2"
+      />
 
-      <v-btn icon @click="handleZoomIn">
+      <v-btn
+        icon
+        @click="handleZoomIn"
+      >
         <v-icon>mdi-magnify-plus</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.zoomIn') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.zoomIn') }}
+        </v-tooltip>
       </v-btn>
 
-      <v-btn icon @click="handleZoomOut">
+      <v-btn
+        icon
+        @click="handleZoomOut"
+      >
         <v-icon>mdi-magnify-minus</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.zoomOut') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.zoomOut') }}
+        </v-tooltip>
       </v-btn>
 
-      <v-divider vertical class="mx-2" />
+      <v-divider
+        vertical
+        class="mx-2"
+      />
 
       <!-- Language Selector -->
       <v-menu>
         <template #activator="{ props }">
-          <v-btn icon v-bind="props">
+          <v-btn
+            icon
+            v-bind="props"
+          >
             <v-icon>mdi-translate</v-icon>
-            <v-tooltip activator="parent" location="bottom">{{ t('toolbar.language') }}</v-tooltip>
+            <v-tooltip
+              activator="parent"
+              location="bottom"
+            >
+              {{ t('toolbar.language') }}
+            </v-tooltip>
           </v-btn>
         </template>
         <v-list>
@@ -86,21 +170,54 @@
         </v-list>
       </v-menu>
 
-      <v-divider vertical class="mx-2" />
+      <v-divider
+        vertical
+        class="mx-2"
+      />
 
-      <v-btn icon color="accent" @click="showNewBeatDialog = true" aria-label="Add beat">
+      <v-btn
+        icon
+        color="accent"
+        aria-label="Add beat"
+        @click="showNewBeatDialog = true"
+      >
         <v-icon>mdi-plus-circle</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.addBeat') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.addBeat') }}
+        </v-tooltip>
       </v-btn>
 
-      <v-btn icon color="secondary" @click="handleCreateGroup" aria-label="Create group">
+      <v-btn
+        icon
+        color="secondary"
+        aria-label="Create group"
+        @click="handleCreateGroup"
+      >
         <v-icon>mdi-group</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.createGroup') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.createGroup') }}
+        </v-tooltip>
       </v-btn>
 
-      <v-btn icon color="info" @click="handleCreateBlock" aria-label="Create block">
+      <v-btn
+        icon
+        color="info"
+        aria-label="Create block"
+        @click="handleCreateBlock"
+      >
         <v-icon>mdi-square</v-icon>
-        <v-tooltip activator="parent" location="bottom">{{ t('toolbar.createBlock') }}</v-tooltip>
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
+          {{ t('toolbar.createBlock') }}
+        </v-tooltip>
       </v-btn>
     </v-app-bar>
 
@@ -108,6 +225,7 @@
     <v-sheet 
       v-if="viewMode === 'canvas'" 
       class="beat-canvas-container"
+      :style="{ cursor: isPanning ? 'grabbing' : 'grab' }"
       @mousedown="handleCanvasMouseDown"
       @mousemove="handleCanvasMouseMove"
       @mouseup="handleCanvasMouseUp"
@@ -116,7 +234,6 @@
       @touchmove="handleCanvasTouchMove"
       @touchend="handleCanvasTouchEnd"
       @touchcancel="handleCanvasTouchEnd"
-      :style="{ cursor: isPanning ? 'grabbing' : 'grab' }"
     >
       <div
         ref="canvasRef"
@@ -132,6 +249,7 @@
           :key="block.id"
           :block="block"
           :zoom="zoom"
+          :is-hovered="hoveredBlockId === block.id"
           @click="selectBlock"
           @dragstart="handleBlockDragStart"
           @dragmove="handleBlockDragMove"
@@ -186,7 +304,10 @@
     </v-sheet>
 
     <!-- Beat Grid (shown in grid mode) -->
-    <v-sheet v-else class="beat-grid-container">
+    <v-sheet
+      v-else
+      class="beat-grid-container"
+    >
       <BeatGridView
         :beats="sortedBeats"
         :beat-types="project.beatTypes"
@@ -278,6 +399,9 @@ const hoveredGroupId = ref<string | null>(null)
 
 // Beat-to-Beat hover state (for highlighting beats in groups during beat drag)
 const hoveredBeatId = ref<string | null>(null)
+
+// Hover state for Blocks (when dragging beats or groups over blocks)
+const hoveredBlockId = ref<string | null>(null)
 
 // Z-index stack management
 // Blocks: base 1, Beats/Groups: dynamic (1000+), Dragging: max + 10000
@@ -655,6 +779,7 @@ function handleBeatDragEnd(beatId: string) {
   draggingBeatId.value = null
   hoveredBeatId.value = null
   hoveredGroupId.value = null
+  hoveredBlockId.value = null
   
   // Save project with updated position
   projectService.saveCurrentProject(project.value)
@@ -715,6 +840,9 @@ function handleGroupDragMove(groupId: string, deltaX: number, deltaY: number) {
       })
     }
   }
+  
+  // Check for block collisions during group drag
+  checkGroupBlockCollision(newX, newY)
 }
 
 function handleGroupDragEnd(groupId: string) {
@@ -722,6 +850,7 @@ function handleGroupDragEnd(groupId: string) {
   
   isDraggingGroup.value = false
   draggingGroupId.value = null
+  hoveredBlockId.value = null
   
   // Save project with updated group position
   projectService.saveCurrentProject(project.value)
@@ -787,6 +916,7 @@ function detectGroupHover(beatX: number, beatY: number) {
   if (isDraggingGroup.value) {
     hoveredBeatId.value = null
     hoveredGroupId.value = null
+    hoveredBlockId.value = null
     return
   }
   
@@ -847,9 +977,68 @@ function detectGroupHover(beatX: number, beatY: number) {
     }
   }
   
+  // Check collision with each Block (only if not colliding with beats or groups)
+  for (const block of project.value.blocks) {
+    const blockLeft = block.position.x
+    const blockRight = block.position.x + block.size.width
+    const blockTop = block.position.y
+    const blockBottom = block.position.y + block.size.height
+    
+    const hasOverlap = (
+      beatRight > blockLeft &&
+      beatLeft < blockRight &&
+      beatBottom > blockTop &&
+      beatTop < blockBottom
+    )
+    
+    if (hasOverlap) {
+      hoveredBlockId.value = block.id
+      hoveredGroupId.value = null
+      hoveredBeatId.value = null
+      return
+    }
+  }
+  
   // No collision found
   hoveredGroupId.value = null
   hoveredBeatId.value = null
+  hoveredBlockId.value = null
+}
+
+/**
+ * Check if a dragging BeatGroup collides with any Block
+ */
+function checkGroupBlockCollision(groupX: number, groupY: number) {
+  const GROUP_WIDTH = 430
+  const GROUP_HEIGHT = 50
+  
+  const groupLeft = groupX
+  const groupRight = groupX + GROUP_WIDTH
+  const groupTop = groupY
+  const groupBottom = groupY + GROUP_HEIGHT
+  
+  // Check collision with each Block
+  for (const block of project.value.blocks) {
+    const blockLeft = block.position.x
+    const blockRight = block.position.x + block.size.width
+    const blockTop = block.position.y
+    const blockBottom = block.position.y + block.size.height
+    
+    const hasOverlap = (
+      groupRight > blockLeft &&
+      groupLeft < blockRight &&
+      groupBottom > blockTop &&
+      groupTop < blockBottom
+    )
+    
+    if (hasOverlap) {
+      hoveredBlockId.value = block.id
+      return
+    }
+  }
+  
+  // No collision found
+  hoveredBlockId.value = null
 }
 
 // Group editing handlers

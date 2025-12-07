@@ -1,7 +1,13 @@
 <template>
-  <v-dialog :model-value="modelValue" max-width="500" @update:model-value="$emit('update:modelValue', $event)">
+  <v-dialog
+    :model-value="modelValue"
+    max-width="500"
+    @update:model-value="$emit('update:modelValue', $event)"
+  >
     <v-card>
-      <v-card-title class="text-h5">{{ t('beatTypeDialog.title') }}</v-card-title>
+      <v-card-title class="text-h5">
+        {{ t('beatTypeDialog.title') }}
+      </v-card-title>
 
       <v-card-text>
         <v-list>
@@ -13,7 +19,9 @@
             @click="handleSelect(beatType.id)"
           >
             <template #prepend>
-              <v-icon :color="beatType.color">{{ beatType.icon }}</v-icon>
+              <v-icon :color="beatType.color">
+                {{ beatType.icon }}
+              </v-icon>
             </template>
           </v-list-item>
         </v-list>
@@ -21,7 +29,13 @@
 
       <v-card-actions>
         <v-spacer />
-        <v-btn color="grey" variant="text" @click="handleCancel">{{ t('common.cancel') }}</v-btn>
+        <v-btn
+          color="grey"
+          variant="text"
+          @click="handleCancel"
+        >
+          {{ t('common.cancel') }}
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

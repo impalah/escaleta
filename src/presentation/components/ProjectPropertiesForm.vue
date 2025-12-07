@@ -1,14 +1,16 @@
 <template>
   <div class="project-properties-form">
-    <h3 class="form-title">{{ t('propertiesPanel.project') }}</h3>
+    <h3 class="form-title">
+      {{ t('propertiesPanel.project') }}
+    </h3>
 
     <v-text-field
       v-model="localProject.name"
       :label="t('projectProperties.name')"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-textarea

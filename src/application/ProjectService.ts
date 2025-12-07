@@ -375,7 +375,7 @@ export class ProjectService {
     if (!beat || !targetBeat) return project
 
     // Desconectar beat actual de sus vecinos
-    let updatedProject = this.disconnectBeat(project, beatId)
+    const updatedProject = this.disconnectBeat(project, beatId)
 
     // Obtener targetBeat actualizado del proyecto modificado
     const updatedTargetBeat = updatedProject.beats.find(b => b.id === targetBeatId)
@@ -427,7 +427,7 @@ export class ProjectService {
     if (!targetBeat) return project
     
     // Disconnect the entire group from its current position
-    let updatedProject = { ...project }
+    const updatedProject = { ...project }
     
     // Disconnect group from neighbors
     const firstBeat = updatedProject.beats.find(b => b.id === firstBeatId)
@@ -592,7 +592,7 @@ export class ProjectService {
     if (!beat || !targetBeat) return project
 
     // Desconectar beat actual de sus vecinos
-    let updatedProject = this.disconnectBeat(project, beatId)
+    const updatedProject = this.disconnectBeat(project, beatId)
 
     // Obtener targetBeat actualizado del proyecto modificado
     const updatedTargetBeat = updatedProject.beats.find(b => b.id === targetBeatId)
@@ -820,7 +820,7 @@ export class ProjectService {
     const updatedBeatIds = [...group.beatIds, beatId]
     
     // Position ALL beats in the group sequentially - CRITICAL: X must ALWAYS match group header X
-    let updatedBeats = project.beats.map(beat => {
+    const updatedBeats = project.beats.map(beat => {
       const indexInGroup = updatedBeatIds.indexOf(beat.id)
       
       // Only update beats that are in this group

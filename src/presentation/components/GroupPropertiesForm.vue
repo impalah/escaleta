@@ -1,14 +1,16 @@
 <template>
   <div class="group-properties-form">
-    <h3 class="form-title">{{ t('propertiesPanel.group') }}</h3>
+    <h3 class="form-title">
+      {{ t('propertiesPanel.group') }}
+    </h3>
 
     <v-text-field
       v-model="localGroup.name"
       :label="t('groupProperties.name')"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-textarea
@@ -17,8 +19,8 @@
       variant="outlined"
       density="comfortable"
       rows="3"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-text-field
@@ -29,16 +31,16 @@
       type="color"
       :hint="t('groupProperties.colorHint')"
       persistent-hint
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-checkbox
       v-model="localGroup.collapsed"
       :label="t('groupProperties.collapsed')"
       density="comfortable"
-      @update:model-value="handleUpdate"
       class="mb-4"
+      @update:model-value="handleUpdate"
     />
 
     <v-text-field
@@ -47,8 +49,8 @@
       type="number"
       variant="outlined"
       density="comfortable"
-      @input="handleUpdate"
       class="mb-4"
+      @input="handleUpdate"
     />
 
     <v-divider class="my-4" />
@@ -67,7 +69,6 @@
         <span class="info-value">{{ formatDate(localGroup.updatedAt) }}</span>
       </p>
     </div>
-
   </div>
 </template>
 

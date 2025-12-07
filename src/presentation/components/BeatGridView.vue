@@ -15,26 +15,39 @@
         size="small"
         class="font-weight-medium"
       >
-        <v-icon start :icon="getBeatType(item.typeId)?.icon" />
+        <v-icon
+          start
+          :icon="getBeatType(item.typeId)?.icon"
+        />
         {{ t(`beatTypes.${item.typeId}`) }}
       </v-chip>
     </template>
 
     <!-- Order column with badge -->
     <template #item.order="{ item }">
-      <v-badge :content="item.order" color="primary" inline />
+      <v-badge
+        :content="item.order"
+        color="primary"
+        inline
+      />
     </template>
 
     <!-- Title column (truncate long titles) -->
     <template #item.title="{ item }">
-      <div class="text-truncate" style="max-width: 250px">
+      <div
+        class="text-truncate"
+        style="max-width: 250px"
+      >
         {{ item.title }}
       </div>
     </template>
 
     <!-- Description column (truncate long descriptions) -->
     <template #item.description="{ item }">
-      <div class="text-truncate" style="max-width: 300px">
+      <div
+        class="text-truncate"
+        style="max-width: 300px"
+      >
         {{ item.description || '—' }}
       </div>
     </template>

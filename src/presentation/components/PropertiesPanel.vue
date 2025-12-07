@@ -24,11 +24,14 @@
           size="small"
           variant="text"
           :color="isMaximized ? 'primary' : 'default'"
-          @click="toggleMaximize"
           class="mr-2"
+          @click="toggleMaximize"
         >
           <v-icon>{{ isMaximized ? 'mdi-window-restore' : 'mdi-window-maximize' }}</v-icon>
-          <v-tooltip activator="parent" location="bottom">
+          <v-tooltip
+            activator="parent"
+            location="bottom"
+          >
             {{ isMaximized ? t('propertiesPanel.restore') : t('propertiesPanel.maximize') }}
           </v-tooltip>
         </v-btn>
@@ -40,7 +43,10 @@
           @click="toggleAnchor"
         >
           <v-icon>{{ anchorSide === 'right' ? 'mdi-dock-left' : 'mdi-dock-right' }}</v-icon>
-          <v-tooltip activator="parent" location="bottom">
+          <v-tooltip
+            activator="parent"
+            location="bottom"
+          >
             {{ anchorSide === 'right' ? t('propertiesPanel.dockLeft') : t('propertiesPanel.dockRight') }}
           </v-tooltip>
         </v-btn>
@@ -69,9 +75,19 @@
           :block="selectedEntity.data as Block"
           @update="handleBlockUpdate"
         />
-        <div v-else class="empty-state">
-          <v-icon size="64" color="grey-lighten-1">mdi-information-outline</v-icon>
-          <p class="text-grey">Selecciona un elemento para editar sus propiedades</p>
+        <div
+          v-else
+          class="empty-state"
+        >
+          <v-icon
+            size="64"
+            color="grey-lighten-1"
+          >
+            mdi-information-outline
+          </v-icon>
+          <p class="text-grey">
+            Selecciona un elemento para editar sus propiedades
+          </p>
         </div>
       </div>
     </div>
@@ -81,7 +97,10 @@
       class="resize-handle"
       @mousedown="startResize"
     >
-      <v-icon size="small" class="resize-icon">
+      <v-icon
+        size="small"
+        class="resize-icon"
+      >
         {{ anchorSide === 'right' ? 'mdi-drag-vertical' : 'mdi-drag-vertical' }}
       </v-icon>
     </div>

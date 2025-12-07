@@ -1,12 +1,14 @@
 <template>
-  <div class="beat-card-wrapper" 
+  <div
+    class="beat-card-wrapper" 
     :class="{ 'is-dragging': isDragging, 'beat-hovered': isHovered }"
     :data-beat-id="beat.id"
     :style="{
-    left: `${beat.position.x}px`,
-    top: `${beat.position.y}px`,
-    zIndex: zIndex ?? 1000
-  }">
+      left: `${beat.position.x}px`,
+      top: `${beat.position.y}px`,
+      zIndex: zIndex ?? 1000
+    }"
+  >
     <!-- Beat Card -->
     <v-card
       data-testid="beat-card"
@@ -24,25 +26,35 @@
     >
       <v-card-text class="pa-3">
         <div class="d-flex align-center mb-2">
-          <v-icon :color="getContrastColor(beatType?.color)" size="small" class="mr-2">
+          <v-icon
+            :color="getContrastColor(beatType?.color)"
+            size="small"
+            class="mr-2"
+          >
             {{ beatType?.icon || 'mdi-file' }}
           </v-icon>
-          <span class="text-caption" :style="{ color: getContrastColor(beatType?.color) }">
+          <span
+            class="text-caption"
+            :style="{ color: getContrastColor(beatType?.color) }"
+          >
             {{ beatType?.name || 'Unknown' }}
           </span>
           <v-spacer />
           <button
             class="delete-btn"
+            aria-label="Delete beat"
+            title="Delete beat"
             @click.stop="handleDelete"
             @mousedown.stop
             @touchstart.stop
-            aria-label="Delete beat"
-            title="Delete beat"
           >
             <span class="delete-icon">×</span>
           </button>
         </div>
-        <div class="beat-title" :style="{ color: getContrastColor(beatType?.color) }">
+        <div
+          class="beat-title"
+          :style="{ color: getContrastColor(beatType?.color) }"
+        >
           {{ beat.title }}
         </div>
       </v-card-text>
