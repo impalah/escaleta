@@ -36,7 +36,7 @@ const i18n = createI18n({
 
 // Save language preference when changed
 export function setLanguage(locale: string) {
-  i18n.global.locale.value = locale
+  i18n.global.locale.value = locale as 'es-ES' | 'en-US'
   localStorage.setItem(LANGUAGE_KEY, locale)
 }
 

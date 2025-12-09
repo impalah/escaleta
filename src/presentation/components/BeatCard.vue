@@ -64,10 +64,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import type { Beat, BeatType } from '@/domain/entities'
-
-const { t } = useI18n()
 
 const props = defineProps<{
   beat: Beat
@@ -76,6 +73,7 @@ const props = defineProps<{
   isHovered?: boolean // True when another beat is being dragged over this beat
   isInGroup?: boolean // True when beat belongs to a BeatGroup
   zIndex?: number // Assigned z-index from parent (includes group inheritance)
+  parentBlockId?: string // If set, position is relative to parent block
 }>()
 
 const emit = defineEmits<{

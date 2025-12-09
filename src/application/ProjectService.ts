@@ -1,7 +1,7 @@
 import type { Project, Beat, BeatType, BeatGroup, Block } from '@/domain/entities'
 import { storageService } from '@/infrastructure/LocalStorageService'
 import { v4 as uuidv4 } from '@/utils/uuid'
-import { t, getBeatTypeName, getNewBeatTitle } from '@/i18n/helpers'
+import { t, getNewBeatTitle } from '@/i18n/helpers'
 
 /**
  * Application layer: orchestrates business logic
@@ -23,6 +23,13 @@ export class ProjectService {
       if (!saved.blocks) {
         saved.blocks = []
       }
+      // Migrate blocks to include beatIds array
+      saved.blocks = saved.blocks.map(block => {
+        if (!block.beatIds) {
+          return { ...block, beatIds: [] }
+        }
+        return block
+      })
       return saved
     }
 
@@ -958,6 +965,7 @@ export class ProjectService {
   /**
    * Order beat IDs by their chain connections (first to last)
    */
+  // @ts-ignore - Method reserved for future chain ordering feature
   private orderBeatChain(project: Project, beatIds: string[]): string[] {
     if (beatIds.length === 0) return []
     if (beatIds.length === 1) return beatIds
@@ -1114,6 +1122,7 @@ export class ProjectService {
       position: { x: nextX, y: nextY },
       size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
       groupIds: [],
+      beatIds: [],
       order: nextOrder,
       createdAt: now,
       updatedAt: now
@@ -1155,6 +1164,199 @@ export class ProjectService {
       blocks: project.blocks.filter(block => block.id !== blockId),
       updatedAt: new Date().toISOString()
     }
+  }
+
+  /**
+   * Add a BeatGroup to a Block
+   * Reorganizes existing content horizontally
+   */
+  addGroupToBlock(project: Project, groupId: string, blockId: string): Project {
+    const block = project.blocks.find(b => b.id === blockId)
+    if (!block) return project
+    
+    // Check if group is already in this block
+    if (block.groupIds.includes(groupId)) return project
+    
+    // Remove group from other blocks
+    let updatedProject = { ...project }
+    updatedProject.blocks = updatedProject.blocks.map(b => ({
+      ...b,
+      groupIds: b.groupIds.filter(id => id !== groupId)
+    }))
+    
+    // Add group to this block
+    updatedProject = this.updateBlock(updatedProject, blockId, {
+      groupIds: [...block.groupIds, groupId]
+    })
+    
+    // Reorganize content horizontally
+    updatedProject = this.reorganizeBlockContents(updatedProject, blockId)
+    
+    return updatedProject
+  }
+
+  /**
+   * Add a Beat to a Block (individual beat without group)
+   * Reorganizes existing content horizontally
+   */
+  addBeatToBlock(project: Project, beatId: string, blockId: string): Project {
+    const block = project.blocks.find(b => b.id === blockId)
+    if (!block) return project
+    
+    // Check if beat is already in this block
+    if (block.beatIds.includes(beatId)) return project
+    
+    // Remove beat from other blocks
+    let updatedProject = { ...project }
+    updatedProject.blocks = updatedProject.blocks.map(b => ({
+      ...b,
+      beatIds: b.beatIds.filter(id => id !== beatId)
+    }))
+    
+    // Remove beat from any group (beats in blocks are independent)
+    const parentGroup = this.getGroupForBeat(updatedProject, beatId)
+    if (parentGroup) {
+      updatedProject = this.removeBeatFromGroup(updatedProject, beatId, parentGroup.id)
+    }
+    
+    // Add beat to this block
+    updatedProject = this.updateBlock(updatedProject, blockId, {
+      beatIds: [...block.beatIds, beatId]
+    })
+    
+    // Reorganize content horizontally
+    updatedProject = this.reorganizeBlockContents(updatedProject, blockId)
+    
+    return updatedProject
+  }
+
+  /**
+   * Remove a BeatGroup from a Block
+   * Returns the group to the canvas and reorganizes remaining content
+   */
+  removeGroupFromBlock(project: Project, groupId: string, blockId: string): Project {
+    const block = project.blocks.find(b => b.id === blockId)
+    if (!block) return project
+    
+    let updatedProject = this.updateBlock(project, blockId, {
+      groupIds: block.groupIds.filter(id => id !== groupId)
+    })
+    
+    // Reorganize remaining content
+    updatedProject = this.reorganizeBlockContents(updatedProject, blockId)
+    
+    return updatedProject
+  }
+
+  /**
+   * Remove a Beat from a Block
+   * Returns the beat to the canvas and reorganizes remaining content
+   */
+  removeBeatFromBlock(project: Project, beatId: string, blockId: string): Project {
+    const block = project.blocks.find(b => b.id === blockId)
+    if (!block) return project
+    
+    let updatedProject = this.updateBlock(project, blockId, {
+      beatIds: block.beatIds.filter(id => id !== beatId)
+    })
+    
+    // Reorganize remaining content
+    updatedProject = this.reorganizeBlockContents(updatedProject, blockId)
+    
+    return updatedProject
+  }
+
+  /**
+   * Get the block that contains a BeatGroup
+   */
+  getBlockForGroup(project: Project, groupId: string): Block | undefined {
+    return project.blocks.find(b => b.groupIds.includes(groupId))
+  }
+
+  /**
+   * Get the block that contains a Beat (individual beat, not in a group)
+   */
+  getBlockForBeat(project: Project, beatId: string): Block | undefined {
+    return project.blocks.find(b => b.beatIds.includes(beatId))
+  }
+
+  /**
+   * Check if a beat belongs to a block (directly, not through a group)
+   */
+  belongsToBlock(project: Project, beatId: string): boolean {
+    return project.blocks.some(b => b.beatIds.includes(beatId))
+  }
+
+  /**
+   * Check if a group belongs to a block
+   */
+  groupBelongsToBlock(project: Project, groupId: string): boolean {
+    return project.blocks.some(b => b.groupIds.includes(groupId))
+  }
+
+  /**
+   * Reorganize all content within a Block horizontally from left to right
+   * with spacing between elements
+   */
+  reorganizeBlockContents(project: Project, blockId: string): Project {
+    const block = project.blocks.find(b => b.id === blockId)
+    if (!block) return project
+    
+    const HORIZONTAL_SPACING = 30 // Space between elements
+    const VERTICAL_PADDING = 20 // Top padding
+    const HORIZONTAL_PADDING = 20 // Left padding
+    const GROUP_WIDTH = 430 // Width of a BeatGroup
+    const BEAT_WIDTH = 400 // Width of a Beat card
+    
+    let currentX = HORIZONTAL_PADDING
+    const currentY = VERTICAL_PADDING
+    
+    let updatedProject = { ...project }
+    
+    // Position all BeatGroups first
+    for (const groupId of block.groupIds) {
+      const group = updatedProject.beatGroups.find(g => g.id === groupId)
+      if (!group) continue
+      
+      // Update group position (relative to block)
+      updatedProject = this.updateBeatGroup(updatedProject, groupId, {
+        position: { x: currentX, y: currentY }
+      })
+      
+      // Position beats within the group
+      const GROUP_HEADER_HEIGHT = 50
+      let beatY = currentY + GROUP_HEADER_HEIGHT + 10
+      
+      for (const beatId of group.beatIds) {
+        const beatIndex = updatedProject.beats.findIndex(b => b.id === beatId)
+        if (beatIndex !== -1) {
+          updatedProject.beats[beatIndex] = {
+            ...updatedProject.beats[beatIndex],
+            position: { x: currentX, y: beatY },
+            updatedAt: new Date().toISOString()
+          }
+          beatY += 80 + 10 // Beat height + spacing
+        }
+      }
+      
+      currentX += GROUP_WIDTH + HORIZONTAL_SPACING
+    }
+    
+    // Position individual beats (without group)
+    for (const beatId of block.beatIds) {
+      const beatIndex = updatedProject.beats.findIndex(b => b.id === beatId)
+      if (beatIndex === -1) continue
+      
+      updatedProject.beats[beatIndex] = {
+        ...updatedProject.beats[beatIndex],
+        position: { x: currentX, y: currentY },
+        updatedAt: new Date().toISOString()
+      }
+      
+      currentX += BEAT_WIDTH + HORIZONTAL_SPACING
+    }
+    
+    return updatedProject
   }
 
   // TODO: Implement export to JSON

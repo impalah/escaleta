@@ -1,7 +1,7 @@
 <template>
   <div
     class="block-card"
-    :class="{ 'is-hovered': isHovered }"
+    :class="{ 'is-hovered': isHovered, 'allow-overflow': isDraggingContent }"
     :style="blockStyle"
     :data-block-id="block.id"
   >
@@ -23,6 +23,55 @@
         </button>
       </div>
     </div>
+
+    <!-- Content container (for beats and groups inside block) -->
+    <div class="block-content">
+      <slot name="content" />
+    </div>
+
+    <!-- Resize Handles -->
+    <div
+      class="resize-handle resize-handle-top"
+      @mousedown.stop="handleResizeStart($event, 'top')"
+      @touchstart.stop="handleResizeTouchStart($event, 'top')"
+    />
+    <div
+      class="resize-handle resize-handle-right"
+      @mousedown.stop="handleResizeStart($event, 'right')"
+      @touchstart.stop="handleResizeTouchStart($event, 'right')"
+    />
+    <div
+      class="resize-handle resize-handle-bottom"
+      @mousedown.stop="handleResizeStart($event, 'bottom')"
+      @touchstart.stop="handleResizeTouchStart($event, 'bottom')"
+    />
+    <div
+      class="resize-handle resize-handle-left"
+      @mousedown.stop="handleResizeStart($event, 'left')"
+      @touchstart.stop="handleResizeTouchStart($event, 'left')"
+    />
+
+    <!-- Corner Resize Handles -->
+    <div
+      class="resize-handle resize-handle-top-left"
+      @mousedown.stop="handleResizeStart($event, 'top-left')"
+      @touchstart.stop="handleResizeTouchStart($event, 'top-left')"
+    />
+    <div
+      class="resize-handle resize-handle-top-right"
+      @mousedown.stop="handleResizeStart($event, 'top-right')"
+      @touchstart.stop="handleResizeTouchStart($event, 'top-right')"
+    />
+    <div
+      class="resize-handle resize-handle-bottom-left"
+      @mousedown.stop="handleResizeStart($event, 'bottom-left')"
+      @touchstart.stop="handleResizeTouchStart($event, 'bottom-left')"
+    />
+    <div
+      class="resize-handle resize-handle-bottom-right"
+      @mousedown.stop="handleResizeStart($event, 'bottom-right')"
+      @touchstart.stop="handleResizeTouchStart($event, 'bottom-right')"
+    />
   </div>
 </template>
 
@@ -34,6 +83,7 @@ const props = defineProps<{
   block: Block
   zoom?: number
   isHovered?: boolean
+  isDraggingContent?: boolean // True when beats/groups are being dragged
 }>()
 
 const emit = defineEmits<{
@@ -41,6 +91,7 @@ const emit = defineEmits<{
   dragstart: [blockId: string]
   dragmove: [blockId: string, deltaX: number, deltaY: number]
   dragend: [blockId: string]
+  resize: [blockId: string, newSize: { width: number; height: number }, newPosition?: { x: number; y: number }]
   delete: [blockId: string]
 }>()
 
@@ -48,6 +99,16 @@ const isDragging = ref(false)
 const dragStartPos = ref({ x: 0, y: 0 })
 const touchIdentifier = ref<number | null>(null)
 const hasMoved = ref(false)
+
+// Resize state
+const isResizing = ref(false)
+const resizeDirection = ref<'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null>(null)
+const resizeStartPos = ref({ x: 0, y: 0 })
+const resizeStartSize = ref({ width: 0, height: 0 })
+const resizeStartBlockPos = ref({ x: 0, y: 0 })
+const resizeTouchIdentifier = ref<number | null>(null)
+const MIN_BLOCK_WIDTH = 200
+const MIN_BLOCK_HEIGHT = 150
 
 const blockStyle = computed(() => {
   const baseStyle = {
@@ -60,7 +121,7 @@ const blockStyle = computed(() => {
     transform: `scale(${props.zoom || 1})`,
     transformOrigin: 'top left' as const,
     cursor: isDragging.value ? 'grabbing' : 'default',
-    zIndex: isDragging.value ? 1000 : 1 // High z-index when dragging, lowest when not
+    zIndex: (isDragging.value || isResizing.value) ? 1000 : 1 // High z-index when dragging/resizing
   }
   return baseStyle
 })
@@ -192,6 +253,176 @@ function handleTouchEnd() {
   }
 }
 
+// Resize handlers
+function handleResizeStart(event: MouseEvent, direction: typeof resizeDirection.value) {
+  if (event.button !== 0) return
+  
+  event.stopPropagation()
+  event.preventDefault()
+  
+  isResizing.value = true
+  resizeDirection.value = direction
+  resizeStartPos.value = { x: event.clientX, y: event.clientY }
+  resizeStartSize.value = { ...props.block.size }
+  resizeStartBlockPos.value = { ...props.block.position }
+  
+  window.addEventListener('mousemove', handleResizeMove)
+  window.addEventListener('mouseup', handleResizeEnd)
+}
+
+function handleResizeMove(event: MouseEvent) {
+  if (!isResizing.value || !resizeDirection.value) return
+  
+  const zoom = props.zoom || 1
+  const deltaX = (event.clientX - resizeStartPos.value.x) / zoom
+  const deltaY = (event.clientY - resizeStartPos.value.y) / zoom
+  
+  let newWidth = resizeStartSize.value.width
+  let newHeight = resizeStartSize.value.height
+  let newX = resizeStartBlockPos.value.x
+  let newY = resizeStartBlockPos.value.y
+  
+  // Calculate new size and position based on direction
+  switch (resizeDirection.value) {
+    case 'right':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width + deltaX)
+      break
+    case 'bottom':
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height + deltaY)
+      break
+    case 'left':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width - deltaX)
+      newX = resizeStartBlockPos.value.x + (resizeStartSize.value.width - newWidth)
+      break
+    case 'top':
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height - deltaY)
+      newY = resizeStartBlockPos.value.y + (resizeStartSize.value.height - newHeight)
+      break
+    case 'top-left':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width - deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height - deltaY)
+      newX = resizeStartBlockPos.value.x + (resizeStartSize.value.width - newWidth)
+      newY = resizeStartBlockPos.value.y + (resizeStartSize.value.height - newHeight)
+      break
+    case 'top-right':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width + deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height - deltaY)
+      newY = resizeStartBlockPos.value.y + (resizeStartSize.value.height - newHeight)
+      break
+    case 'bottom-left':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width - deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height + deltaY)
+      newX = resizeStartBlockPos.value.x + (resizeStartSize.value.width - newWidth)
+      break
+    case 'bottom-right':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width + deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height + deltaY)
+      break
+  }
+  
+  emit('resize', props.block.id, { width: newWidth, height: newHeight }, { x: newX, y: newY })
+}
+
+function handleResizeEnd() {
+  if (!isResizing.value) return
+  
+  window.removeEventListener('mousemove', handleResizeMove)
+  window.removeEventListener('mouseup', handleResizeEnd)
+  
+  isResizing.value = false
+  resizeDirection.value = null
+}
+
+// Touch resize handlers
+function handleResizeTouchStart(event: TouchEvent, direction: typeof resizeDirection.value) {
+  if (event.touches.length !== 1) return
+  
+  event.stopPropagation()
+  
+  const touch = event.touches[0]
+  resizeTouchIdentifier.value = touch.identifier
+  
+  isResizing.value = true
+  resizeDirection.value = direction
+  resizeStartPos.value = { x: touch.clientX, y: touch.clientY }
+  resizeStartSize.value = { ...props.block.size }
+  resizeStartBlockPos.value = { ...props.block.position }
+  
+  window.addEventListener('touchmove', handleResizeTouchMove, { passive: false })
+  window.addEventListener('touchend', handleResizeTouchEnd)
+  window.addEventListener('touchcancel', handleResizeTouchEnd)
+}
+
+function handleResizeTouchMove(event: TouchEvent) {
+  if (!isResizing.value || !resizeDirection.value || resizeTouchIdentifier.value === null) return
+  
+  const touch = Array.from(event.touches).find(t => t.identifier === resizeTouchIdentifier.value)
+  if (!touch) return
+  
+  event.preventDefault()
+  
+  const zoom = props.zoom || 1
+  const deltaX = (touch.clientX - resizeStartPos.value.x) / zoom
+  const deltaY = (touch.clientY - resizeStartPos.value.y) / zoom
+  
+  let newWidth = resizeStartSize.value.width
+  let newHeight = resizeStartSize.value.height
+  let newX = resizeStartBlockPos.value.x
+  let newY = resizeStartBlockPos.value.y
+  
+  // Calculate new size and position based on direction (same logic as mouse)
+  switch (resizeDirection.value) {
+    case 'right':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width + deltaX)
+      break
+    case 'bottom':
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height + deltaY)
+      break
+    case 'left':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width - deltaX)
+      newX = resizeStartBlockPos.value.x + (resizeStartSize.value.width - newWidth)
+      break
+    case 'top':
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height - deltaY)
+      newY = resizeStartBlockPos.value.y + (resizeStartSize.value.height - newHeight)
+      break
+    case 'top-left':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width - deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height - deltaY)
+      newX = resizeStartBlockPos.value.x + (resizeStartSize.value.width - newWidth)
+      newY = resizeStartBlockPos.value.y + (resizeStartSize.value.height - newHeight)
+      break
+    case 'top-right':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width + deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height - deltaY)
+      newY = resizeStartBlockPos.value.y + (resizeStartSize.value.height - newHeight)
+      break
+    case 'bottom-left':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width - deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height + deltaY)
+      newX = resizeStartBlockPos.value.x + (resizeStartSize.value.width - newWidth)
+      break
+    case 'bottom-right':
+      newWidth = Math.max(MIN_BLOCK_WIDTH, resizeStartSize.value.width + deltaX)
+      newHeight = Math.max(MIN_BLOCK_HEIGHT, resizeStartSize.value.height + deltaY)
+      break
+  }
+  
+  emit('resize', props.block.id, { width: newWidth, height: newHeight }, { x: newX, y: newY })
+}
+
+function handleResizeTouchEnd() {
+  if (!isResizing.value) return
+  
+  window.removeEventListener('touchmove', handleResizeTouchMove)
+  window.removeEventListener('touchend', handleResizeTouchEnd)
+  window.removeEventListener('touchcancel', handleResizeTouchEnd)
+  
+  isResizing.value = false
+  resizeDirection.value = null
+  resizeTouchIdentifier.value = null
+}
+
 function handleDelete(event: Event) {
   event.stopPropagation()
   emit('delete', props.block.id)
@@ -205,6 +436,18 @@ function handleDelete(event: Event) {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
   user-select: none;
   /* z-index is now dynamic via inline style */
+  position: relative;
+  overflow: hidden; /* Default: hide overflow */
+}
+
+.block-card.allow-overflow {
+  overflow: visible; /* Allow overflow when dragging content */
+}
+
+.block-content {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 36px); /* Subtract header height */
 }
 
 .block-card.is-hovered {
@@ -226,6 +469,13 @@ function handleDelete(event: Event) {
 
 .block-header:active {
   cursor: grabbing;
+}
+
+.block-content {
+  position: relative;
+  width: 100%;
+  height: calc(100% - 36px); /* Full height minus header */
+  overflow: hidden; /* Clip content that exceeds block size */
 }
 
 .block-name {
@@ -270,5 +520,82 @@ function handleDelete(event: Event) {
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
+}
+
+/* Resize Handles */
+.resize-handle {
+  position: absolute;
+  background: transparent;
+  z-index: 10;
+}
+
+.resize-handle:hover {
+  background: rgba(33, 150, 243, 0.3);
+}
+
+/* Edge handles */
+.resize-handle-top {
+  top: 0;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resize-handle-right {
+  top: 8px;
+  right: 0;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+.resize-handle-bottom {
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 8px;
+  cursor: ns-resize;
+}
+
+.resize-handle-left {
+  top: 8px;
+  left: 0;
+  bottom: 8px;
+  width: 8px;
+  cursor: ew-resize;
+}
+
+/* Corner handles */
+.resize-handle-top-left {
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
+}
+
+.resize-handle-top-right {
+  top: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-bottom-left {
+  bottom: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nesw-resize;
+}
+
+.resize-handle-bottom-right {
+  bottom: 0;
+  right: 0;
+  width: 12px;
+  height: 12px;
+  cursor: nwse-resize;
 }
 </style>

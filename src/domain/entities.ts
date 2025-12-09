@@ -70,6 +70,7 @@ export interface Block {
   position: { x: number; y: number } // Top-left corner position
   size: { width: number; height: number } // Block dimensions
   groupIds: string[] // IDs of BeatGroups that belong to this block
+  beatIds: string[] // IDs of individual Beats that belong to this block (without group)
   order: number // Display order (z-index will be derived from this)
   createdAt: string
   updatedAt: string

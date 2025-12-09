@@ -33,6 +33,7 @@ const props = defineProps<{
   zoom?: number
   isHovered?: boolean
   zIndex?: number // Assigned z-index from parent
+  parentBlockId?: string // If set, position is relative to parent block
 }>()
 
 const emit = defineEmits<{
