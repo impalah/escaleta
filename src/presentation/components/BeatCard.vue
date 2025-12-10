@@ -72,6 +72,7 @@ const props = defineProps<{
   isGroupDragging?: boolean // True when entire group is being dragged
   isHovered?: boolean // True when another beat is being dragged over this beat
   isInGroup?: boolean // True when beat belongs to a BeatGroup
+  zoom?: number // Zoom level (1 = normal, for beats inside blocks to avoid double zoom)
   zIndex?: number // Assigned z-index from parent (includes group inheritance)
   parentBlockId?: string // If set, position is relative to parent block
 }>()

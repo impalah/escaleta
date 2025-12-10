@@ -1295,20 +1295,6 @@ export class ProjectService {
   }
 
   /**
-   * Get the block that contains a Beat (individual beat, not in a group)
-   */
-  getBlockForBeat(project: Project, beatId: string): Block | undefined {
-    return project.blocks.find(b => b.beatIds.includes(beatId))
-  }
-
-  /**
-   * Check if a beat belongs to a block (directly, not through a group)
-   */
-  belongsToBlock(project: Project, beatId: string): boolean {
-    return project.blocks.some(b => b.beatIds.includes(beatId))
-  }
-
-  /**
    * Check if a group belongs to a block
    */
   groupBelongsToBlock(project: Project, groupId: string): boolean {

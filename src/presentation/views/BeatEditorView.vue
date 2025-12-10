@@ -285,6 +285,7 @@
               :is-group-dragging="isDraggingGroup"
               :is-hovered="hoveredBeatId === beatId"
               :is-in-group="false"
+              :zoom="1"
               :z-index="
                 isDraggingBeat && draggingBeatId === beatId
                   ? getOrAssignZIndex(beatId, true)

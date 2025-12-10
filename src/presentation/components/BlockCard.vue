@@ -118,8 +118,7 @@ const blockStyle = computed(() => {
     width: `${props.block.size.width}px`,
     height: `${props.block.size.height}px`,
     backgroundColor: props.block.backgroundColor,
-    transform: `scale(${props.zoom || 1})`,
-    transformOrigin: 'top left' as const,
+    // No aplicar transform scale - el canvas ya aplica el zoom
     cursor: isDragging.value ? 'grabbing' : 'default',
     zIndex: (isDragging.value || isResizing.value) ? 1000 : 1 // High z-index when dragging/resizing
   }
