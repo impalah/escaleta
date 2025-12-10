@@ -1073,45 +1073,10 @@ function handleGroupDragEnd(groupId: string) {
         project.value = projectService.removeGroupFromBlock(project.value, groupId, currentBlock.id)
       }
       
-      // Add group to the hovered block
+      // Add group to the hovered block (this calls reorganizeBlockContents internally)
       project.value = projectService.addGroupToBlock(project.value, groupId, hoveredBlockId.value)
       
-      // Calculate horizontal position (align to the right of the last element)
-      const BEAT_WIDTH = 400
-      const GROUP_WIDTH = 430
-      const HORIZONTAL_MARGIN = 20
-      const VERTICAL_MARGIN = 20 // Distance from top of block
-      
-      let rightmostX = HORIZONTAL_MARGIN // Start position if block is empty
-      
-      // Check all beats in this block
-      const beatsInBlock = project.value.beats.filter(b => 
-        targetBlock.beatIds.includes(b.id)
-      )
-      for (const beat of beatsInBlock) {
-        const beatRight = beat.position.x + BEAT_WIDTH
-        if (beatRight > rightmostX) {
-          rightmostX = beatRight
-        }
-      }
-      
-      // Check all groups in this block (excluding the one being dropped)
-      const groupsInBlock = project.value.beatGroups.filter(g => 
-        targetBlock.groupIds.includes(g.id) && g.id !== groupId
-      )
-      for (const group of groupsInBlock) {
-        const groupRight = group.position.x + GROUP_WIDTH
-        if (groupRight > groupRight) {
-          rightmostX = groupRight
-        }
-      }
-      
-      // Position the group to the right of the last element (or at start if empty)
-      const group = project.value.beatGroups.find(g => g.id === groupId)
-      if (group) {
-        group.position.x = rightmostX + (rightmostX > HORIZONTAL_MARGIN ? HORIZONTAL_MARGIN : 0)
-        group.position.y = VERTICAL_MARGIN
-      }
+      console.log('Group dropped into block:', hoveredBlockId.value)
     }
     
     // Clear drag state

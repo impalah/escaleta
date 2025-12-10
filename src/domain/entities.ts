@@ -62,6 +62,11 @@ export interface BeatGroup {
   updatedAt: string
 }
 
+export interface BlockElement {
+  id: string
+  type: 'beat' | 'group'
+}
+
 export interface Block {
   id: string
   name: string
@@ -71,6 +76,7 @@ export interface Block {
   size: { width: number; height: number } // Block dimensions
   groupIds: string[] // IDs of BeatGroups that belong to this block
   beatIds: string[] // IDs of individual Beats that belong to this block (without group)
+  elements: BlockElement[] // Ordered list of elements (beats and groups) for layout
   order: number // Display order (z-index will be derived from this)
   createdAt: string
   updatedAt: string

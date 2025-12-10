@@ -1071,6 +1071,20 @@ export class ProjectService {
     return project.beatGroups.some(g => g.beatIds.includes(beatId))
   }
 
+  /**
+   * Check if a beat belongs to a block
+   */
+  belongsToBlock(project: Project, beatId: string): boolean {
+    return project.blocks.some(b => b.beatIds.includes(beatId))
+  }
+
+  /**
+   * Get the block that contains a beat
+   */
+  getBlockForBeat(project: Project, beatId: string): Block | undefined {
+    return project.blocks.find(b => b.beatIds.includes(beatId))
+  }
+
   // ========== Block Management ==========
 
   /**
@@ -1123,6 +1137,7 @@ export class ProjectService {
       size: { width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT },
       groupIds: [],
       beatIds: [],
+      elements: [], // Empty ordered list
       order: nextOrder,
       createdAt: now,
       updatedAt: now
@@ -1177,16 +1192,18 @@ export class ProjectService {
     // Check if group is already in this block
     if (block.groupIds.includes(groupId)) return project
     
-    // Remove group from other blocks
+    // Remove group from other blocks (including from elements array)
     let updatedProject = { ...project }
     updatedProject.blocks = updatedProject.blocks.map(b => ({
       ...b,
-      groupIds: b.groupIds.filter(id => id !== groupId)
+      groupIds: b.groupIds.filter(id => id !== groupId),
+      elements: b.elements.filter(el => !(el.type === 'group' && el.id === groupId))
     }))
     
-    // Add group to this block
+    // Add group to this block (both to groupIds and elements)
     updatedProject = this.updateBlock(updatedProject, blockId, {
-      groupIds: [...block.groupIds, groupId]
+      groupIds: [...block.groupIds, groupId],
+      elements: [...block.elements, { id: groupId, type: 'group' as const }]
     })
     
     // Reorganize content horizontally
@@ -1206,11 +1223,12 @@ export class ProjectService {
     // Check if beat is already in this block
     if (block.beatIds.includes(beatId)) return project
     
-    // Remove beat from other blocks
+    // Remove beat from other blocks (including from elements array)
     let updatedProject = { ...project }
     updatedProject.blocks = updatedProject.blocks.map(b => ({
       ...b,
-      beatIds: b.beatIds.filter(id => id !== beatId)
+      beatIds: b.beatIds.filter(id => id !== beatId),
+      elements: b.elements.filter(el => !(el.type === 'beat' && el.id === beatId))
     }))
     
     // Remove beat from any group (beats in blocks are independent)
@@ -1219,9 +1237,10 @@ export class ProjectService {
       updatedProject = this.removeBeatFromGroup(updatedProject, beatId, parentGroup.id)
     }
     
-    // Add beat to this block
+    // Add beat to this block (both to beatIds and elements)
     updatedProject = this.updateBlock(updatedProject, blockId, {
-      beatIds: [...block.beatIds, beatId]
+      beatIds: [...block.beatIds, beatId],
+      elements: [...block.elements, { id: beatId, type: 'beat' as const }]
     })
     
     // Reorganize content horizontally
@@ -1239,7 +1258,8 @@ export class ProjectService {
     if (!block) return project
     
     let updatedProject = this.updateBlock(project, blockId, {
-      groupIds: block.groupIds.filter(id => id !== groupId)
+      groupIds: block.groupIds.filter(id => id !== groupId),
+      elements: block.elements.filter(el => !(el.type === 'group' && el.id === groupId))
     })
     
     // Reorganize remaining content
@@ -1257,7 +1277,8 @@ export class ProjectService {
     if (!block) return project
     
     let updatedProject = this.updateBlock(project, blockId, {
-      beatIds: block.beatIds.filter(id => id !== beatId)
+      beatIds: block.beatIds.filter(id => id !== beatId),
+      elements: block.elements.filter(el => !(el.type === 'beat' && el.id === beatId))
     })
     
     // Reorganize remaining content
@@ -1296,7 +1317,7 @@ export class ProjectService {
 
   /**
    * Reorganize all content within a Block horizontally from left to right
-   * with spacing between elements
+   * respecting insertion order via the elements array
    */
   reorganizeBlockContents(project: Project, blockId: string): Project {
     const block = project.blocks.find(b => b.id === blockId)
@@ -1307,53 +1328,54 @@ export class ProjectService {
     const HORIZONTAL_PADDING = 20 // Left padding
     const GROUP_WIDTH = 430 // Width of a BeatGroup
     const BEAT_WIDTH = 400 // Width of a Beat card
+    const GROUP_HEADER_HEIGHT = 50
+    const BEAT_HEIGHT = 80
+    const GAP = 10
     
     let currentX = HORIZONTAL_PADDING
     const currentY = VERTICAL_PADDING
     
     let updatedProject = { ...project }
     
-    // Position all BeatGroups first
-    for (const groupId of block.groupIds) {
-      const group = updatedProject.beatGroups.find(g => g.id === groupId)
-      if (!group) continue
-      
-      // Update group position (relative to block)
-      updatedProject = this.updateBeatGroup(updatedProject, groupId, {
-        position: { x: currentX, y: currentY }
-      })
-      
-      // Position beats within the group
-      const GROUP_HEADER_HEIGHT = 50
-      let beatY = currentY + GROUP_HEADER_HEIGHT + 10
-      
-      for (const beatId of group.beatIds) {
-        const beatIndex = updatedProject.beats.findIndex(b => b.id === beatId)
-        if (beatIndex !== -1) {
-          updatedProject.beats[beatIndex] = {
-            ...updatedProject.beats[beatIndex],
-            position: { x: currentX, y: beatY },
-            updatedAt: new Date().toISOString()
+    // Process elements in order (respects insertion order)
+    for (const element of block.elements) {
+      if (element.type === 'group') {
+        const group = updatedProject.beatGroups.find(g => g.id === element.id)
+        if (!group) continue
+        
+        // Update group position (relative to block)
+        updatedProject = this.updateBeatGroup(updatedProject, element.id, {
+          position: { x: currentX, y: currentY }
+        })
+        
+        // Position beats within the group
+        let beatY = currentY + GROUP_HEADER_HEIGHT + GAP
+        
+        for (const beatId of group.beatIds) {
+          const beatIndex = updatedProject.beats.findIndex(b => b.id === beatId)
+          if (beatIndex !== -1) {
+            updatedProject.beats[beatIndex] = {
+              ...updatedProject.beats[beatIndex],
+              position: { x: currentX, y: beatY },
+              updatedAt: new Date().toISOString()
+            }
+            beatY += BEAT_HEIGHT + GAP
           }
-          beatY += 80 + 10 // Beat height + spacing
         }
+        
+        currentX += GROUP_WIDTH + HORIZONTAL_SPACING
+      } else if (element.type === 'beat') {
+        const beatIndex = updatedProject.beats.findIndex(b => b.id === element.id)
+        if (beatIndex === -1) continue
+        
+        updatedProject.beats[beatIndex] = {
+          ...updatedProject.beats[beatIndex],
+          position: { x: currentX, y: currentY },
+          updatedAt: new Date().toISOString()
+        }
+        
+        currentX += BEAT_WIDTH + HORIZONTAL_SPACING
       }
-      
-      currentX += GROUP_WIDTH + HORIZONTAL_SPACING
-    }
-    
-    // Position individual beats (without group)
-    for (const beatId of block.beatIds) {
-      const beatIndex = updatedProject.beats.findIndex(b => b.id === beatId)
-      if (beatIndex === -1) continue
-      
-      updatedProject.beats[beatIndex] = {
-        ...updatedProject.beats[beatIndex],
-        position: { x: currentX, y: currentY },
-        updatedAt: new Date().toISOString()
-      }
-      
-      currentX += BEAT_WIDTH + HORIZONTAL_SPACING
     }
     
     return updatedProject

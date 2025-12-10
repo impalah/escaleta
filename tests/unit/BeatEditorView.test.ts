@@ -110,6 +110,7 @@ vi.mock('@/application/ProjectService', () => ({
         { id: 'vtr', name: 'VTR', color: '#9C27B0', icon: 'mdi-video' }
       ],
       beatGroups: [], // Add beatGroups to prevent undefined errors
+      blocks: [], // Add blocks to prevent undefined errors
       createdAt: '2024-01-01T00:00:00Z',
       updatedAt: '2024-01-01T00:00:00Z'
     })),
@@ -136,7 +137,9 @@ vi.mock('@/application/ProjectService', () => ({
     })),
     getGroupForBeat: vi.fn(() => null),
     removeBeatFromGroup: vi.fn((project) => project),
-    belongsToBeatGroup: vi.fn(() => false), // Add belongsToBeatGroup mock
+    belongsToBeatGroup: vi.fn(() => false),
+    belongsToBlock: vi.fn(() => false), // Add belongsToBlock mock
+    getBlockForBeat: vi.fn(() => undefined), // Add getBlockForBeat mock
     deleteBeatGroup: vi.fn((project, groupId) => ({
       ...project,
       beatGroups: project.beatGroups.filter((g: { id: string }) => g.id !== groupId)
