@@ -3,13 +3,18 @@
  * These types represent the core business logic and are independent of infrastructure
  */
 
+export interface Position {
+  x: number
+  y: number
+}
+
 export interface Beat {
   id: string
   title: string
   description: string // Renamed to script in UI, but keeping field name for compatibility
   typeId: string
   order: number
-  position: { x: number; y: number }
+  position: Position
   links: string[] // IDs of related beats (deprecated)
   prevBeatId?: string // Beat anterior en la cadena
   nextBeatId?: string // Beat siguiente en la cadena
@@ -55,7 +60,7 @@ export interface BeatGroup {
   description?: string
   color?: string // Hex color for group visualization (optional)
   beatIds: string[] // IDs of beats that belong to this group
-  position: { x: number; y: number } // Visual position on canvas
+  position: Position // Visual position on canvas
   collapsed: boolean // Whether the group is collapsed in the UI
   order: number // Display order
   createdAt: string
@@ -72,7 +77,7 @@ export interface Block {
   name: string
   description?: string
   backgroundColor: string // Solid background color (hex)
-  position: { x: number; y: number } // Top-left corner position
+  position: Position // Top-left corner position
   size: { width: number; height: number } // Block dimensions
   groupIds: string[] // IDs of BeatGroups that belong to this block
   beatIds: string[] // IDs of individual Beats that belong to this block (without group)

@@ -447,6 +447,8 @@ import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
 import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
+import { dragAndDropService } from '@/services/DragAndDropService'
+import { positionCalculationService } from '@/services/PositionCalculationService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
 import BlockCard from '@/presentation/components/BlockCard.vue'
@@ -810,185 +812,51 @@ function handleBeatDragStart(beatId: string) {
   isDraggingBeat.value = true
   draggingBeatId.value = beatId
   
-  const beat = project.value.beats.find((b: Beat) => b.id === beatId)
-  if (!beat) return
-  
-  // Check if beat belongs to a group
-  const parentGroup = projectService.getGroupForBeat(project.value, beatId)
-  
-  // Si el beat está en un grupo, extraerlo del grupo al hacer drag
-  if (parentGroup) {
-    project.value = projectService.removeBeatFromGroup(project.value, beatId, parentGroup.id)
-  }
-  
-  // Guardar posición inicial del beat
-  beatDragStartPosition.value = { ...beat.position }
+  const { project: updatedProject, startPosition } = dragAndDropService.handleBeatDragStart(project.value, beatId)
+  project.value = updatedProject
+  beatDragStartPosition.value = startPosition
 }
 
 function handleBeatDragMove(beatId: string, deltaX: number, deltaY: number) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
-  // Calculate new position accounting for zoom
+  // Calculate deltas accounting for zoom
   const deltaXScaled = deltaX / zoom.value
   const deltaYScaled = deltaY / zoom.value
   
-  const beat = project.value.beats.find(b => b.id === beatId)
-  if (!beat) return
+  // Update beat position using service
+  project.value = dragAndDropService.handleBeatDragMove(
+    project.value,
+    beatId,
+    beatDragStartPosition.value,
+    deltaXScaled,
+    deltaYScaled
+  )
   
-  // Mover el beat a la nueva posición
-  const newX = beatDragStartPosition.value.x + deltaXScaled
-  const newY = beatDragStartPosition.value.y + deltaYScaled
-  
-  const beatIndex = project.value.beats.findIndex(b => b.id === beatId)
-  if (beatIndex !== -1) {
-    project.value.beats[beatIndex] = {
-      ...project.value.beats[beatIndex],
-      position: { x: newX, y: newY },
-      updatedAt: new Date().toISOString()
-    }
+  // Update start position for next delta
+  beatDragStartPosition.value = {
+    x: beatDragStartPosition.value.x + deltaXScaled,
+    y: beatDragStartPosition.value.y + deltaYScaled
   }
   
-  // Detectar colisión con BeatGroups
-  detectGroupHover(newX, newY)
+  // Detect hover for groups (for visual feedback)
+  const beat = project.value.beats.find(b => b.id === beatId)
+  if (beat) {
+    detectGroupHover(beat.position.x, beat.position.y)
+  }
 }
 
 function handleBeatDragEnd(beatId: string) {
   if (!isDraggingBeat.value || draggingBeatId.value !== beatId) return
   
-  // First, check if beat was in a block and is being dragged out
-  const currentBlock = projectService.getBlockForBeat(project.value, beatId)
-  if (currentBlock) {
-    const beat = project.value.beats.find(b => b.id === beatId)
-    if (beat) {
-      const isInsideBlock = isPointInsideBlock(beat.position, currentBlock)
-      if (!isInsideBlock && !hoveredBlockId.value) {
-        // Beat dragged out of block and not over another block
-        project.value = projectService.removeBeatFromBlock(project.value, beatId, currentBlock.id)
-        console.log('Beat removed from block')
-      }
-    }
-  }
-  
-  // Check if dropped onto a beat within a group (higher priority than group header)
-  if (hoveredBeatId.value) {
-    const targetBeat = project.value.beats.find(b => b.id === hoveredBeatId.value)
-    if (targetBeat) {
-      // Find which group the target beat belongs to
-      const targetGroup = projectService.getGroupForBeat(project.value, hoveredBeatId.value)
-      if (targetGroup) {
-        // Remove from any block first
-        const beatBlock = projectService.getBlockForBeat(project.value, beatId)
-        if (beatBlock) {
-          project.value = projectService.removeBeatFromBlock(project.value, beatId, beatBlock.id)
-        }
-        
-        // Insert source beat at target beat's position
-        project.value = projectService.insertBeatIntoGroupAtPosition(
-          project.value,
-          beatId,
-          hoveredBeatId.value,
-          targetGroup.id
-        )
-        
-        // Clear drag state
-        isDraggingBeat.value = false
-        draggingBeatId.value = null
-        hoveredBeatId.value = null
-        hoveredGroupId.value = null
-        
-        // Save project
-        projectService.saveCurrentProject(project.value)
-        console.log('Beat inserted into group at specific position')
-        return
-      }
-    }
-  }
-  
-  // Check if dropped into a BeatGroup header (append to end)
-  if (hoveredGroupId.value) {
-    // Remove from any block first
-    const beatBlock = projectService.getBlockForBeat(project.value, beatId)
-    if (beatBlock) {
-      project.value = projectService.removeBeatFromBlock(project.value, beatId, beatBlock.id)
-    }
-    
-    project.value = projectService.dropBeatIntoGroup(project.value, beatId, hoveredGroupId.value)
-    
-    // Clear drag state
-    isDraggingBeat.value = false
-    draggingBeatId.value = null
-    hoveredBeatId.value = null
-    hoveredGroupId.value = null
-    
-    // Save project
-    projectService.saveCurrentProject(project.value)
-    console.log('Beat dropped into group')
-    return
-  }
-  
-  // Drop beat into Block with horizontal alignment
-  if (hoveredBlockId.value) {
-    const targetBlock = project.value.blocks.find(b => b.id === hoveredBlockId.value)
-    if (targetBlock) {
-      // Remove beat from any existing block
-      const beatBlock = projectService.getBlockForBeat(project.value, beatId)
-      if (beatBlock && beatBlock.id !== hoveredBlockId.value) {
-        project.value = projectService.removeBeatFromBlock(project.value, beatId, beatBlock.id)
-      }
-      
-      // Add beat to the hovered block
-      project.value = projectService.addBeatToBlock(project.value, beatId, hoveredBlockId.value)
-      
-      // Calculate horizontal position (align to the right of the last element)
-      const BEAT_WIDTH = 400
-      const GROUP_WIDTH = 430
-      const HORIZONTAL_MARGIN = 20
-      const VERTICAL_MARGIN = 20 // Distance from top of block
-      
-      let rightmostX = HORIZONTAL_MARGIN // Start position if block is empty
-      
-      // Check all beats in this block
-      const beatsInBlock = project.value.beats.filter(b => 
-        targetBlock.beatIds.includes(b.id) && b.id !== beatId
-      )
-      for (const beat of beatsInBlock) {
-        const beatRight = beat.position.x + BEAT_WIDTH
-        if (beatRight > rightmostX) {
-          rightmostX = beatRight
-        }
-      }
-      
-      // Check all groups in this block
-      const groupsInBlock = project.value.beatGroups.filter(g => 
-        targetBlock.groupIds.includes(g.id)
-      )
-      for (const group of groupsInBlock) {
-        const groupRight = group.position.x + GROUP_WIDTH
-        if (groupRight > rightmostX) {
-          rightmostX = groupRight
-        }
-      }
-      
-      // Position the beat to the right of the last element (or at start if empty)
-      const beat = project.value.beats.find(b => b.id === beatId)
-      if (beat) {
-        beat.position.x = rightmostX + (rightmostX > HORIZONTAL_MARGIN ? HORIZONTAL_MARGIN : 0)
-        beat.position.y = VERTICAL_MARGIN
-      }
-    }
-    
-    // Clear drag state
-    isDraggingBeat.value = false
-    draggingBeatId.value = null
-    hoveredBeatId.value = null
-    hoveredGroupId.value = null
-    hoveredBlockId.value = null
-    
-    // Save project
-    projectService.saveCurrentProject(project.value)
-    console.log('Beat dropped into block with horizontal alignment')
-    return
-  }
+  // Use service to handle drag end logic
+  project.value = dragAndDropService.handleBeatDragEnd(
+    project.value,
+    beatId,
+    hoveredBeatId.value,
+    hoveredGroupId.value,
+    hoveredBlockId.value
+  )
   
   // Clear drag state
   isDraggingBeat.value = false
@@ -997,9 +865,8 @@ function handleBeatDragEnd(beatId: string) {
   hoveredGroupId.value = null
   hoveredBlockId.value = null
   
-  // Save project with updated position
+  // Save project
   projectService.saveCurrentProject(project.value)
-  console.log('Beat position saved')
 }
 
 // Group drag handlers
@@ -1208,10 +1075,12 @@ function detectGroupHover(beatX: number, beatY: number) {
       const groupBeat = project.value.beats.find((b: Beat) => b.id === beatId)
       if (!groupBeat) continue
       
-      const groupBeatLeft = groupBeat.position.x
-      const groupBeatRight = groupBeat.position.x + BEAT_WIDTH
-      const groupBeatTop = groupBeat.position.y
-      const groupBeatBottom = groupBeat.position.y + BEAT_HEIGHT
+      // FIX: Use absolute position (accounts for parent block)
+      const absolutePos = positionCalculationService.getBeatAbsolutePosition(groupBeat, project.value)
+      const groupBeatLeft = absolutePos.x
+      const groupBeatRight = absolutePos.x + BEAT_WIDTH
+      const groupBeatTop = absolutePos.y
+      const groupBeatBottom = absolutePos.y + BEAT_HEIGHT
       
       // Calculate overlap area to require significant overlap (not just 1px)
       const overlapWidth = Math.min(beatRight, groupBeatRight) - Math.max(beatLeft, groupBeatLeft)
@@ -1235,10 +1104,12 @@ function detectGroupHover(beatX: number, beatY: number) {
     // Skip if dragging the group itself
     if (isDraggingGroup.value && draggingGroupId.value === group.id) continue
     
-    const groupLeft = group.position.x
-    const groupRight = group.position.x + GROUP_WIDTH
-    const groupTop = group.position.y
-    const groupBottom = group.position.y + GROUP_HEIGHT
+    // FIX: Use absolute position (accounts for parent block)
+    const absolutePos = positionCalculationService.getGroupAbsolutePosition(group, project.value)
+    const groupLeft = absolutePos.x
+    const groupRight = absolutePos.x + GROUP_WIDTH
+    const groupTop = absolutePos.y
+    const groupBottom = absolutePos.y + GROUP_HEIGHT
     
     // Check if there's overlap with the header ONLY - require significant overlap
     const overlapWidth = Math.min(beatRight, groupRight) - Math.max(beatLeft, groupLeft)

@@ -25,8 +25,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import type { BeatGroup } from '@/domain/entities'
+import { useDraggable } from '@/composables/useDraggable'
 
 const props = defineProps<{
   group: BeatGroup
@@ -44,10 +45,36 @@ const emit = defineEmits<{
   delete: [groupId: string]
 }>()
 
-const isDragging = ref(false)
-const dragStartPos = ref({ x: 0, y: 0 })
-const touchIdentifier = ref<number | null>(null)
-const hasMoved = ref(false)
+// Use draggable composable for unified drag behavior
+const {
+  isDragging,
+  hasMoved,
+  handleMouseDown,
+  handleTouchStart,
+  cleanup
+} = useDraggable({
+  elementId: props.group.id,
+  dragThreshold: 3,
+  onDragStart: (groupId) => {
+    emit('dragstart', groupId)
+  },
+  onDragMove: (groupId, deltaX, deltaY) => {
+    emit('dragmove', groupId, deltaX, deltaY)
+  },
+  onDragEnd: (groupId) => {
+    emit('dragend', groupId)
+    
+    // If didn't move, treat as click
+    if (!hasMoved.value) {
+      emit('click', props.group)
+    }
+  }
+})
+
+// Cleanup on unmount
+onUnmounted(() => {
+  cleanup()
+})
 
 const groupStyle = computed(() => {
   const baseStyle = {
@@ -61,130 +88,6 @@ const groupStyle = computed(() => {
   }
   return baseStyle
 })
-
-function handleMouseDown(event: MouseEvent) {
-  // Only handle left mouse button
-  if (event.button !== 0) return
-  
-  // Don't handle if clicking on delete button
-  if ((event.target as HTMLElement).closest('.delete-btn')) {
-    return
-  }
-  
-  event.stopPropagation()
-  event.preventDefault()
-  
-  isDragging.value = true
-  hasMoved.value = false
-  dragStartPos.value = { x: event.clientX, y: event.clientY }
-  
-  emit('dragstart', props.group.id)
-  
-  // Add global mouse listeners
-  window.addEventListener('mousemove', handleMouseMove)
-  window.addEventListener('mouseup', handleMouseUp)
-}
-
-function handleMouseMove(event: MouseEvent) {
-  if (!isDragging.value) return
-  
-  const deltaX = event.clientX - dragStartPos.value.x
-  const deltaY = event.clientY - dragStartPos.value.y
-  
-  // Mark as moved if moved more than 3 pixels
-  if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
-    hasMoved.value = true
-  }
-  
-  emit('dragmove', props.group.id, deltaX, deltaY)
-  
-  // Update drag start position for next delta calculation
-  dragStartPos.value = { x: event.clientX, y: event.clientY }
-}
-
-function handleMouseUp() {
-  if (!isDragging.value) return
-  
-  const wasDragging = hasMoved.value
-  
-  isDragging.value = false
-  emit('dragend', props.group.id)
-  
-  // If didn't move, treat as click
-  if (!wasDragging) {
-    emit('click', props.group)
-  }
-  
-  // Remove global listeners
-  window.removeEventListener('mousemove', handleMouseMove)
-  window.removeEventListener('mouseup', handleMouseUp)
-}
-
-// Touch event handlers
-function handleTouchStart(event: TouchEvent) {
-  // Don't handle if touching delete button
-  if ((event.target as HTMLElement).closest('.delete-btn')) {
-    return
-  }
-  
-  event.stopPropagation()
-  
-  const touch = event.touches[0]
-  if (!touch) return
-  
-  touchIdentifier.value = touch.identifier
-  isDragging.value = true
-  hasMoved.value = false
-  dragStartPos.value = { x: touch.clientX, y: touch.clientY }
-  
-  emit('dragstart', props.group.id)
-  
-  // Add global touch listeners
-  window.addEventListener('touchmove', handleTouchMove)
-  window.addEventListener('touchend', handleTouchEnd)
-  window.addEventListener('touchcancel', handleTouchEnd)
-}
-
-function handleTouchMove(event: TouchEvent) {
-  if (!isDragging.value || touchIdentifier.value === null) return
-  
-  // Find the touch with the matching identifier
-  const touch = Array.from(event.touches).find(t => t.identifier === touchIdentifier.value)
-  if (!touch) return
-  
-  const deltaX = touch.clientX - dragStartPos.value.x
-  const deltaY = touch.clientY - dragStartPos.value.y
-  
-  // Mark as moved if moved more than 3 pixels
-  if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
-    hasMoved.value = true
-  }
-  
-  emit('dragmove', props.group.id, deltaX, deltaY)
-  
-  // Update drag start position for next delta calculation
-  dragStartPos.value = { x: touch.clientX, y: touch.clientY }
-}
-
-function handleTouchEnd() {
-  if (!isDragging.value) return
-  
-  const wasDragging = hasMoved.value
-  
-  isDragging.value = false
-  touchIdentifier.value = null
-  emit('dragend', props.group.id)
-  
-  // If didn't move, treat as click
-  if (!wasDragging) {
-    emit('click', props.group)
-  }
-  
-  // Remove global listeners
-  window.removeEventListener('touchmove', handleTouchMove)
-  window.removeEventListener('touchend', handleTouchEnd)
-  window.removeEventListener('touchcancel', handleTouchEnd)
-}
 
 function handleDelete(event: Event) {
   event.stopPropagation()

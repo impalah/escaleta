@@ -63,8 +63,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onUnmounted } from 'vue'
 import type { Beat, BeatType } from '@/domain/entities'
+import { useDraggable } from '@/composables/useDraggable'
 
 const props = defineProps<{
   beat: Beat
@@ -85,142 +86,37 @@ const emit = defineEmits<{
   delete: [beatId: string]
 }>()
 
-const isDragging = ref(false)
-const dragStarted = ref(false) // Track if drag actually started (after threshold)
-const dragStart = ref({ x: 0, y: 0 })
-const hasMoved = ref(false)
-const touchIdentifier = ref<number | null>(null)
-const DRAG_THRESHOLD = 10 // pixels to move before starting drag
-
-function handleMouseDown(event: MouseEvent) {
-  // Prevent triggering click on canvas pan
-  event.stopPropagation()
-  
-  isDragging.value = true
-  dragStarted.value = false
-  hasMoved.value = false
-  dragStart.value = { x: event.clientX, y: event.clientY }
-  
-  // Don't emit dragstart yet - wait for threshold
-  
-  // Add global listeners for drag
-  document.addEventListener('mousemove', handleMouseMove)
-  document.addEventListener('mouseup', handleMouseUp)
-}
-
-function handleMouseMove(event: MouseEvent) {
-  if (!isDragging.value) return
-  
-  const deltaX = event.clientX - dragStart.value.x
-  const deltaY = event.clientY - dragStart.value.y
-  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-  
-  // Check if we've moved past the threshold
-  if (!dragStarted.value && distance >= DRAG_THRESHOLD) {
-    dragStarted.value = true
-    emit('dragstart', props.beat.id)
+// Use draggable composable for unified drag behavior
+const {
+  isDragging,
+  hasMoved,
+  handleMouseDown,
+  handleTouchStart,
+  cleanup
+} = useDraggable({
+  elementId: props.beat.id,
+  dragThreshold: 10,
+  onDragStart: (beatId) => {
+    emit('dragstart', beatId)
+  },
+  onDragMove: (beatId, deltaX, deltaY) => {
+    emit('dragmove', beatId, deltaX, deltaY)
+  },
+  onDragEnd: (beatId) => {
+    emit('dragend', beatId)
   }
-  
-  // Only emit dragmove if drag has actually started
-  if (dragStarted.value) {
-    hasMoved.value = true
-    emit('dragmove', props.beat.id, deltaX, deltaY)
-  }
-}
+})
 
-function handleMouseUp() {
-  if (isDragging.value) {
-    // Only emit dragend if drag actually started (past threshold)
-    if (dragStarted.value) {
-      emit('dragend', props.beat.id)
-    }
-    
-    isDragging.value = false
-    dragStarted.value = false
-    
-    // Remove global listeners
-    document.removeEventListener('mousemove', handleMouseMove)
-    document.removeEventListener('mouseup', handleMouseUp)
-  }
-}
-
-// Touch event handlers for mobile support
-function handleTouchStart(event: TouchEvent) {
-  // Prevent triggering click on canvas pan
-  event.stopPropagation()
-  
-  const touch = event.touches[0]
-  if (!touch) return
-  
-  touchIdentifier.value = touch.identifier
-  isDragging.value = true
-  dragStarted.value = false
-  hasMoved.value = false
-  dragStart.value = { x: touch.clientX, y: touch.clientY }
-  
-  // Don't emit dragstart yet - wait for threshold
-  
-  // Add global listeners for touch drag
-  document.addEventListener('touchmove', handleTouchMove, { passive: false })
-  document.addEventListener('touchend', handleTouchEnd)
-  document.addEventListener('touchcancel', handleTouchEnd)
-}
-
-function handleTouchMove(event: TouchEvent) {
-  if (!isDragging.value || touchIdentifier.value === null) return
-  
-  // Find the touch that matches our identifier
-  const touch = Array.from(event.touches).find(t => t.identifier === touchIdentifier.value)
-  if (!touch) return
-  
-  const deltaX = touch.clientX - dragStart.value.x
-  const deltaY = touch.clientY - dragStart.value.y
-  const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
-  
-  // Check if we've moved past the threshold
-  if (!dragStarted.value && distance >= DRAG_THRESHOLD) {
-    dragStarted.value = true
-    emit('dragstart', props.beat.id)
-  }
-  
-  // Only prevent default and emit dragmove if drag has actually started
-  if (dragStarted.value) {
-    // Prevent default to avoid scrolling
-    event.preventDefault()
-    hasMoved.value = true
-    emit('dragmove', props.beat.id, deltaX, deltaY)
-  }
-}
-
-function handleTouchEnd(event: TouchEvent) {
-  if (!isDragging.value || touchIdentifier.value === null) return
-  
-  // Check if our touch ended
-  const touchEnded = !Array.from(event.touches).some(t => t.identifier === touchIdentifier.value)
-  
-  if (touchEnded) {
-    // Only emit dragend if drag actually started (past threshold)
-    if (dragStarted.value) {
-      emit('dragend', props.beat.id)
-    }
-    
-    isDragging.value = false
-    dragStarted.value = false
-    touchIdentifier.value = null
-    
-    // Remove global listeners
-    document.removeEventListener('touchmove', handleTouchMove)
-    document.removeEventListener('touchend', handleTouchEnd)
-    document.removeEventListener('touchcancel', handleTouchEnd)
-  }
-}
+// Cleanup on unmount
+onUnmounted(() => {
+  cleanup()
+})
 
 function handleClick() {
   // Only emit click if we didn't drag
   if (!hasMoved.value) {
     emit('click')
   }
-  hasMoved.value = false
 }
 
 function handleDelete(event: Event) {

@@ -76,8 +76,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, onUnmounted } from 'vue'
 import type { Block } from '@/domain/entities'
+import { useDraggable } from '@/composables/useDraggable'
 
 const props = defineProps<{
   block: Block
@@ -95,12 +96,52 @@ const emit = defineEmits<{
   delete: [blockId: string]
 }>()
 
-const isDragging = ref(false)
-const dragStartPos = ref({ x: 0, y: 0 })
-const touchIdentifier = ref<number | null>(null)
-const hasMoved = ref(false)
+// Use draggable composable for block movement
+const {
+  isDragging,
+  hasMoved,
+  handleMouseDown: dragMouseDown,
+  handleTouchStart: dragTouchStart,
+  cleanup: cleanupDrag
+} = useDraggable({
+  elementId: props.block.id,
+  dragThreshold: 3,
+  onDragStart: (blockId) => {
+    emit('dragstart', blockId)
+  },
+  onDragMove: (blockId, deltaX, deltaY) => {
+    emit('dragmove', blockId, deltaX, deltaY)
+  },
+  onDragEnd: (blockId) => {
+    emit('dragend', blockId)
+    
+    // If didn't move, emit click
+    if (!hasMoved.value) {
+      emit('click', props.block)
+    }
+  }
+})
 
-// Resize state
+// Wrapper functions to handle header-specific logic
+function handleMouseDown(event: MouseEvent) {
+  // Don't handle if clicking on delete button
+  if ((event.target as HTMLElement).closest('.delete-btn')) {
+    return
+  }
+  
+  dragMouseDown(event)
+}
+
+function handleTouchStart(event: TouchEvent) {
+  // Don't handle if touching delete button
+  if ((event.target as HTMLElement).closest('.delete-btn')) {
+    return
+  }
+  
+  dragTouchStart(event)
+}
+
+// Resize state (unchanged)
 const isResizing = ref(false)
 const resizeDirection = ref<'top' | 'right' | 'bottom' | 'left' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | null>(null)
 const resizeStartPos = ref({ x: 0, y: 0 })
@@ -124,133 +165,6 @@ const blockStyle = computed(() => {
   }
   return baseStyle
 })
-
-function handleMouseDown(event: MouseEvent) {
-  // Only handle left mouse button
-  if (event.button !== 0) return
-  
-  // Don't handle if clicking on delete button
-  if ((event.target as HTMLElement).closest('.delete-btn')) {
-    return
-  }
-  
-  event.stopPropagation()
-  event.preventDefault()
-  
-  isDragging.value = true
-  hasMoved.value = false
-  dragStartPos.value = { x: event.clientX, y: event.clientY }
-  
-  emit('dragstart', props.block.id)
-  
-  // Add global mouse listeners
-  window.addEventListener('mousemove', handleMouseMove)
-  window.addEventListener('mouseup', handleMouseUp)
-}
-
-function handleMouseMove(event: MouseEvent) {
-  if (!isDragging.value) return
-  
-  const deltaX = event.clientX - dragStartPos.value.x
-  const deltaY = event.clientY - dragStartPos.value.y
-  
-  // Mark as moved if moved more than 3 pixels
-  if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
-    hasMoved.value = true
-  }
-  
-  emit('dragmove', props.block.id, deltaX, deltaY)
-  
-  // Update drag start position for next delta calculation
-  dragStartPos.value = { x: event.clientX, y: event.clientY }
-}
-
-function handleMouseUp() {
-  if (!isDragging.value) return
-  
-  window.removeEventListener('mousemove', handleMouseMove)
-  window.removeEventListener('mouseup', handleMouseUp)
-  
-  const wasDragging = hasMoved.value
-  
-  isDragging.value = false
-  hasMoved.value = false
-  
-  emit('dragend', props.block.id)
-  
-  // If it was just a click (no movement), emit click event
-  if (!wasDragging) {
-    emit('click', props.block)
-  }
-}
-
-function handleTouchStart(event: TouchEvent) {
-  if (event.touches.length !== 1) return
-  
-  // Don't handle if touching delete button
-  if ((event.target as HTMLElement).closest('.delete-btn')) {
-    return
-  }
-  
-  event.stopPropagation()
-  
-  const touch = event.touches[0]
-  touchIdentifier.value = touch.identifier
-  
-  isDragging.value = true
-  hasMoved.value = false
-  dragStartPos.value = { x: touch.clientX, y: touch.clientY }
-  
-  emit('dragstart', props.block.id)
-  
-  // Add global touch listeners
-  window.addEventListener('touchmove', handleTouchMove, { passive: false })
-  window.addEventListener('touchend', handleTouchEnd)
-  window.addEventListener('touchcancel', handleTouchEnd)
-}
-
-function handleTouchMove(event: TouchEvent) {
-  if (!isDragging.value || touchIdentifier.value === null) return
-  
-  const touch = Array.from(event.touches).find(t => t.identifier === touchIdentifier.value)
-  if (!touch) return
-  
-  event.preventDefault()
-  
-  const deltaX = touch.clientX - dragStartPos.value.x
-  const deltaY = touch.clientY - dragStartPos.value.y
-  
-  // Mark as moved if moved more than 3 pixels
-  if (Math.abs(deltaX) > 3 || Math.abs(deltaY) > 3) {
-    hasMoved.value = true
-  }
-  
-  emit('dragmove', props.block.id, deltaX, deltaY)
-  
-  // Update drag start position for next delta calculation
-  dragStartPos.value = { x: touch.clientX, y: touch.clientY }
-}
-
-function handleTouchEnd() {
-  if (!isDragging.value) return
-  
-  window.removeEventListener('touchmove', handleTouchMove)
-  window.removeEventListener('touchend', handleTouchEnd)
-  window.removeEventListener('touchcancel', handleTouchEnd)
-  
-  const wasDragging = hasMoved.value
-  
-  isDragging.value = false
-  touchIdentifier.value = null
-  hasMoved.value = false
-  
-  emit('dragend', props.block.id)
-  
-  // If it was just a tap (no movement), emit click event
-  if (!wasDragging) {
-    emit('click', props.block)
-  }
-}
 
 // Resize handlers
 function handleResizeStart(event: MouseEvent, direction: typeof resizeDirection.value) {
@@ -422,10 +336,25 @@ function handleResizeTouchEnd() {
   resizeTouchIdentifier.value = null
 }
 
+// Cleanup resize handlers
+function cleanupResize() {
+  window.removeEventListener('mousemove', handleResizeMove)
+  window.removeEventListener('mouseup', handleResizeEnd)
+  window.removeEventListener('touchmove', handleResizeTouchMove)
+  window.removeEventListener('touchend', handleResizeTouchEnd)
+  window.removeEventListener('touchcancel', handleResizeTouchEnd)
+}
+
 function handleDelete(event: Event) {
   event.stopPropagation()
   emit('delete', props.block.id)
 }
+
+// Cleanup on unmount
+onUnmounted(() => {
+  cleanupDrag()
+  cleanupResize()
+})
 </script>
 
 <style scoped>
