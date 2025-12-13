@@ -1,331 +1,183 @@
 import type { Project } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
-import { CollisionDetectionService } from './CollisionDetectionService'
-
-interface Position {
-  x: number
-  y: number
-}
 
 /**
- * Service for handling drag and drop logic
- * Centralizes business logic for dragging beats, groups, and blocks
+ * Service for handling drag and drop operations
+ * Centralizes business logic for dragging beats and groups
  */
-class DragAndDropService {
-  private collisionService = new CollisionDetectionService()
+export class DragAndDropService {
 
   /**
-   * Handles the start of a beat drag operation
-   * - Extracts beat from parent group if needed
-   * @returns Initial position of the beat
+   * Handle beat drag start
+   * Returns updated project and start position
    */
-  handleBeatDragStart(project: Project, beatId: string): { project: Project; startPosition: Position } {
+  handleBeatDragStart(project: Project, beatId: string): { project: Project; startPosition: { x: number; y: number } } {
     const beat = project.beats.find(b => b.id === beatId)
     if (!beat) {
-      throw new Error(`Beat ${beatId} not found`)
-    }
-
-    // Check if beat belongs to a group and extract it
-    const parentGroup = projectService.getGroupForBeat(project, beatId)
-    let updatedProject = project
-    
-    if (parentGroup) {
-      updatedProject = projectService.removeBeatFromGroup(project, beatId, parentGroup.id)
+      return { project, startPosition: { x: 0, y: 0 } }
     }
 
     return {
-      project: updatedProject,
+      project,
       startPosition: { ...beat.position }
     }
   }
 
   /**
-   * Handles the movement of a beat during drag
-   * - Updates beat position
-   * - Returns updated project
+   * Handle beat drag move
+   * Updates beat position based on delta from start
    */
   handleBeatDragMove(
     project: Project,
     beatId: string,
-    startPosition: Position,
+    startPosition: { x: number; y: number },
     deltaX: number,
     deltaY: number
   ): Project {
-    const beatIndex = project.beats.findIndex(b => b.id === beatId)
-    if (beatIndex === -1) return project
+    const beat = project.beats.find(b => b.id === beatId)
+    if (!beat) return project
 
     const newX = startPosition.x + deltaX
     const newY = startPosition.y + deltaY
 
-    const updatedBeats = [...project.beats]
-    updatedBeats[beatIndex] = {
-      ...updatedBeats[beatIndex],
-      position: { x: newX, y: newY },
-      updatedAt: new Date().toISOString()
-    }
-
-    return {
-      ...project,
-      beats: updatedBeats
-    }
+    return projectService.updateBeat(project, beatId, {
+      position: { x: newX, y: newY }
+    })
   }
 
   /**
-   * Handles the end of a beat drag operation
-   * - Checks for block removal (if dragged out)
-   * - Checks for group insertion (if dropped on group/beat)
-   * - Checks for block insertion (if dropped on block)
+   * Handle beat drag end
+   * Resolves final placement:
+   * - Checks for group insertion
    */
   handleBeatDragEnd(
     project: Project,
     beatId: string,
-    hoveredBeatId: string | null,
     hoveredGroupId: string | null,
-    hoveredBlockId: string | null
+    hoveredBeatId: string | null
   ): Project {
     let updatedProject = { ...project }
-    
-    // Check if beat was in a block and dragged out
-    const currentBlock = projectService.getBlockForBeat(project, beatId)
-    if (currentBlock) {
-      const beat = project.beats.find(b => b.id === beatId)
-      if (beat) {
-        const isInsideBlock = this.collisionService.isPointInsideBlock(beat.position, currentBlock)
-        if (!isInsideBlock && !hoveredBlockId) {
-          // Beat dragged out of block
-          updatedProject = projectService.removeBeatFromBlock(updatedProject, beatId, currentBlock.id)
-        }
-      }
-    }
+    const beat = updatedProject.beats.find(b => b.id === beatId)
+    if (!beat) return project
 
-    // Priority 1: Drop onto specific beat in a group
-    if (hoveredBeatId) {
-      const targetGroup = projectService.getGroupForBeat(updatedProject, hoveredBeatId)
-      if (targetGroup) {
-        // Remove from block first
-        const beatBlock = projectService.getBlockForBeat(updatedProject, beatId)
-        if (beatBlock) {
-          updatedProject = projectService.removeBeatFromBlock(updatedProject, beatId, beatBlock.id)
-        }
-        
-        // Insert at specific position
-        updatedProject = projectService.insertBeatIntoGroupAtPosition(
-          updatedProject,
-          beatId,
-          hoveredBeatId,
-          targetGroup.id
-        )
-        
-        return updatedProject
-      }
-    }
-
-    // Priority 2: Drop onto group header (append)
+    // Priority 1: Add to hovered group
     if (hoveredGroupId) {
-      const beatBlock = projectService.getBlockForBeat(updatedProject, beatId)
-      if (beatBlock) {
-        updatedProject = projectService.removeBeatFromBlock(updatedProject, beatId, beatBlock.id)
+      // Remove from old group if exists
+      const oldGroup = projectService.getGroupForBeat(updatedProject, beatId)
+      if (oldGroup && oldGroup.id !== hoveredGroupId) {
+        updatedProject = projectService.removeBeatFromGroup(updatedProject, beatId, oldGroup.id)
       }
       
-      updatedProject = projectService.dropBeatIntoGroup(updatedProject, beatId, hoveredGroupId)
+      updatedProject = projectService.addBeatsToGroup(updatedProject, hoveredGroupId, [beatId])
       return updatedProject
     }
 
-    // Priority 3: Drop into block
-    if (hoveredBlockId) {
-      updatedProject = projectService.addBeatToBlock(updatedProject, beatId, hoveredBlockId)
+    // Priority 2: Insert before/after hovered beat in group
+    if (hoveredBeatId) {
+      updatedProject = this.handleBeatToGroupInsertion(updatedProject, beatId, hoveredBeatId)
       return updatedProject
+    }
+
+    // Priority 3: Beat dropped outside any group - remove from current group if exists
+    const currentGroup = projectService.getGroupForBeat(updatedProject, beatId)
+    if (currentGroup) {
+      updatedProject = projectService.removeBeatFromGroup(updatedProject, beatId, currentGroup.id)
     }
 
     return updatedProject
   }
 
   /**
-   * Handles the start of a group drag operation
-   * - Removes group from parent block if needed
-   * @returns Initial position of the group
+   * Handle group drag start
+   * Removes group from parent block if exists
    */
-  handleGroupDragStart(project: Project, groupId: string): { project: Project; startPosition: Position } {
+  handleGroupDragStart(project: Project, groupId: string): { project: Project; startPosition: { x: number; y: number } } {
     const group = project.beatGroups.find(g => g.id === groupId)
     if (!group) {
-      throw new Error(`Group ${groupId} not found`)
-    }
-
-    // Remove from parent block if exists
-    const parentBlock = projectService.getBlockForGroup(project, groupId)
-    let updatedProject = project
-    
-    if (parentBlock) {
-      updatedProject = projectService.removeGroupFromBlock(project, groupId, parentBlock.id)
+      return { project, startPosition: { x: 0, y: 0 } }
     }
 
     return {
-      project: updatedProject,
+      project,
       startPosition: { ...group.position }
     }
   }
 
   /**
-   * Handles the movement of a group during drag
-   * - Updates group position and all contained beats
-   * - Returns updated project
+   * Handle group drag move
+   * Updates group and all its beats' positions
    */
   handleGroupDragMove(
     project: Project,
     groupId: string,
-    startPosition: Position,
+    startPosition: { x: number; y: number },
     deltaX: number,
     deltaY: number
   ): Project {
-    const groupIndex = project.beatGroups.findIndex(g => g.id === groupId)
-    if (groupIndex === -1) return project
+    const group = project.beatGroups.find(g => g.id === groupId)
+    if (!group) return project
 
-    const group = project.beatGroups[groupIndex]
     const newX = startPosition.x + deltaX
     const newY = startPosition.y + deltaY
 
     // Update group position
-    const updatedGroups = [...project.beatGroups]
-    updatedGroups[groupIndex] = {
-      ...group,
-      position: { x: newX, y: newY },
-      updatedAt: new Date().toISOString()
-    }
-
-    // Update all beats in the group
-    const updatedBeats = project.beats.map(beat => {
-      if (group.beatIds.includes(beat.id)) {
-        const oldGroupPos = startPosition
-        const relativePos = {
-          x: beat.position.x - oldGroupPos.x,
-          y: beat.position.y - oldGroupPos.y
-        }
-        return {
-          ...beat,
-          position: {
-            x: newX + relativePos.x,
-            y: newY + relativePos.y
-          },
-          updatedAt: new Date().toISOString()
-        }
-      }
-      return beat
+    let updatedProject = projectService.updateBeatGroup(project, groupId, {
+      position: { x: newX, y: newY }
     })
 
-    return {
-      ...project,
-      beatGroups: updatedGroups,
-      beats: updatedBeats
-    }
-  }
+    // Update all beats in the group
+    const GROUP_HEADER_HEIGHT = 50
+    const BEAT_HEIGHT = 80
+    const GAP = 10
 
-  /**
-   * Handles the end of a group drag operation
-   * - Checks for block insertion
-   */
-  handleGroupDragEnd(
-    project: Project,
-    groupId: string,
-    hoveredBlockId: string | null
-  ): Project {
-    let updatedProject = { ...project }
-
-    // Check if group was in a block and dragged out
-    const currentBlock = projectService.getBlockForGroup(project, groupId)
-    if (currentBlock) {
-      const group = project.beatGroups.find(g => g.id === groupId)
-      if (group) {
-        const isInsideBlock = this.collisionService.isPointInsideBlock(group.position, currentBlock)
-        if (!isInsideBlock && !hoveredBlockId) {
-          // Group dragged out of block
-          updatedProject = projectService.removeGroupFromBlock(updatedProject, groupId, currentBlock.id)
-        }
-      }
-    }
-
-    // Drop into block
-    if (hoveredBlockId) {
-      updatedProject = projectService.addGroupToBlock(updatedProject, groupId, hoveredBlockId)
-    }
+    group.beatIds.forEach((beatId, index) => {
+      const beatY = newY + GROUP_HEADER_HEIGHT + GAP + (index * (BEAT_HEIGHT + GAP))
+      updatedProject = projectService.updateBeat(updatedProject, beatId, {
+        position: { x: newX, y: beatY }
+      })
+    })
 
     return updatedProject
   }
 
   /**
-   * Handles the movement of a block during drag
-   * - Updates block position and all contained elements
-   * - Returns updated project
+   * Handle group drag end
+   * Resolves final placement
    */
-  handleBlockDragMove(
+  handleGroupDragEnd(
     project: Project,
-    blockId: string,
-    startPosition: Position,
-    deltaX: number,
-    deltaY: number
+    _groupId: string
   ): Project {
-    const blockIndex = project.blocks.findIndex(b => b.id === blockId)
-    if (blockIndex === -1) return project
+    return project
+  }
 
-    const block = project.blocks[blockIndex]
-    const newX = startPosition.x + deltaX
-    const newY = startPosition.y + deltaY
+  /**
+   * Helper: Insert beat into a group by hovering over another beat
+   * The dragged beat will take the position of the hovered beat,
+   * pushing the hovered beat and all beats below it down
+   */
+  private handleBeatToGroupInsertion(project: Project, draggedBeatId: string, hoveredBeatId: string): Project {
+    // Find which group the hovered beat belongs to
+    const targetGroup = projectService.getGroupForBeat(project, hoveredBeatId)
+    if (!targetGroup) return project
 
-    // Update block position
-    const updatedBlocks = [...project.blocks]
-    updatedBlocks[blockIndex] = {
-      ...block,
-      position: { x: newX, y: newY },
-      updatedAt: new Date().toISOString()
+    // Remove beat from old group if exists (and different from target group)
+    const oldGroup = projectService.getGroupForBeat(project, draggedBeatId)
+    let updatedProject = project
+    if (oldGroup && oldGroup.id !== targetGroup.id) {
+      updatedProject = projectService.removeBeatFromGroup(updatedProject, draggedBeatId, oldGroup.id)
     }
 
-    // Update all beats in the block
-    const updatedBeats = project.beats.map(beat => {
-      if (block.beatIds.includes(beat.id)) {
-        const oldBlockPos = startPosition
-        const relativePos = {
-          x: beat.position.x - oldBlockPos.x,
-          y: beat.position.y - oldBlockPos.y
-        }
-        return {
-          ...beat,
-          position: {
-            x: newX + relativePos.x,
-            y: newY + relativePos.y
-          },
-          updatedAt: new Date().toISOString()
-        }
-      }
-      return beat
-    })
-
-    // Update all groups in the block
-    const updatedGroups = project.beatGroups.map(group => {
-      if (block.groupIds.includes(group.id)) {
-        const oldBlockPos = startPosition
-        const relativePos = {
-          x: group.position.x - oldBlockPos.x,
-          y: group.position.y - oldBlockPos.y
-        }
-        return {
-          ...group,
-          position: {
-            x: newX + relativePos.x,
-            y: newY + relativePos.y
-          },
-          updatedAt: new Date().toISOString()
-        }
-      }
-      return group
-    })
-
-    return {
-      ...project,
-      blocks: updatedBlocks,
-      beats: updatedBeats,
-      beatGroups: updatedGroups
-    }
+    // Insert the beat before the hovered beat in the target group
+    updatedProject = projectService.insertBeatBeforeInGroup(
+      updatedProject, 
+      targetGroup.id, 
+      draggedBeatId, 
+      hoveredBeatId
+    )
+    
+    return updatedProject
   }
 }
 
-// Singleton instance
 export const dragAndDropService = new DragAndDropService()

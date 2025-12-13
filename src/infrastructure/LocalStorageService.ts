@@ -25,21 +25,6 @@ export class LocalStorageService {
       }
       const project = JSON.parse(serialized) as Project
       
-      // Migration: Add elements array to blocks if missing
-      if (project.blocks) {
-        project.blocks = project.blocks.map(block => {
-          if (!block.elements) {
-            // Migrate: create elements array from existing beatIds and groupIds
-            const elements = [
-              ...block.groupIds.map(id => ({ id, type: 'group' as const })),
-              ...block.beatIds.map(id => ({ id, type: 'beat' as const }))
-            ]
-            return { ...block, elements }
-          }
-          return block
-        })
-      }
-      
       return project
     } catch (error) {
       console.error('Failed to load project from localStorage:', error)

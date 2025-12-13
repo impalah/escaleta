@@ -204,21 +204,6 @@
           {{ t('toolbar.createGroup') }}
         </v-tooltip>
       </v-btn>
-
-      <v-btn
-        icon
-        color="info"
-        aria-label="Create block"
-        @click="handleCreateBlock"
-      >
-        <v-icon>mdi-square</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.createBlock') }}
-        </v-tooltip>
-      </v-btn>
     </v-app-bar>
 
     <!-- Beat Canvas (shown in canvas mode) -->
@@ -243,101 +228,9 @@
           transformOrigin: 'top left' 
         }"
       >
-        <!-- Block Cards (rendered first, lowest z-index) -->
-        <BlockCard
-          v-for="block in project.blocks"
-          :key="block.id"
-          :block="block"
-          :zoom="zoom"
-          :is-hovered="hoveredBlockId === block.id"
-          :is-dragging-content="isDraggingBeat || isDraggingGroup"
-          @click="selectBlock"
-          @dragstart="handleBlockDragStart"
-          @dragmove="handleBlockDragMove"
-          @dragend="handleBlockDragEnd"
-          @resize="handleBlockResize"
-          @delete="handleDeleteBlock"
-        >
-          <!-- Content inside Block (groups and beats) -->
-          <template #content>
-            <!-- BeatGroups inside this Block -->
-            <BeatGroupCard
-              v-for="groupId in block.groupIds"
-              :key="`block-${block.id}-group-${groupId}`"
-              :group="project.beatGroups.find(g => g.id === groupId)!"
-              :zoom="1"
-              :is-hovered="hoveredGroupId === groupId"
-              :z-index="getOrAssignZIndex(groupId, isDraggingGroup && draggingGroupId === groupId)"
-              :parent-block-id="block.id"
-              @click="selectGroup"
-              @dragstart="handleGroupDragStart"
-              @dragmove="handleGroupDragMove"
-              @dragend="handleGroupDragEnd"
-              @delete="handleDeleteGroup"
-            />
-
-            <!-- Individual Beats inside this Block -->
-            <BeatCard
-              v-for="beatId in block.beatIds"
-              :key="`block-${block.id}-beat-${beatId}`"
-              :beat="project.beats.find(b => b.id === beatId)!"
-              :beat-type="getBeatType(project.beats.find(b => b.id === beatId)!.typeId)"
-              :is-group-dragging="isDraggingGroup"
-              :is-hovered="hoveredBeatId === beatId"
-              :is-in-group="false"
-              :zoom="1"
-              :z-index="
-                isDraggingBeat && draggingBeatId === beatId
-                  ? getOrAssignZIndex(beatId, true)
-                  : getOrAssignZIndex(beatId, false)
-              "
-              :parent-block-id="block.id"
-              @click="selectBeat(project.beats.find(b => b.id === beatId)!)"
-              @dragstart="handleBeatDragStart"
-              @dragmove="handleBeatDragMove"
-              @dragend="handleBeatDragEnd"
-              @delete="handleDeleteBeat"
-            />
-
-            <!-- Group Connection Lines for groups inside this Block -->
-            <GroupConnectionLine
-              v-for="groupId in block.groupIds.filter(gId => {
-                const g = project.beatGroups.find(group => group.id === gId)
-                return g && g.beatIds.length > 0
-              })"
-              :key="`block-${block.id}-group-line-${groupId}`"
-              :group="project.beatGroups.find(g => g.id === groupId)!"
-              :beat="project.beats.find(b => b.id === project.beatGroups.find(g => g.id === groupId)!.beatIds[0])!"
-            />
-
-            <!-- Beat Cards that belong to groups inside this Block -->
-            <template
-              v-for="groupId in block.groupIds"
-              :key="`block-${block.id}-group-${groupId}-beats`"
-            >
-              <BeatCard
-                v-for="beatId in (project.beatGroups.find(g => g.id === groupId)?.beatIds || [])"
-                :key="`block-${block.id}-group-${groupId}-beat-${beatId}`"
-                :beat="project.beats.find(b => b.id === beatId)!"
-                :beat-type="getBeatType(project.beats.find(b => b.id === beatId)!.typeId)"
-                :is-group-dragging="isDraggingGroup"
-                :is-hovered="hoveredBeatId === beatId"
-                :is-in-group="true"
-                :z-index="getGroupZIndex(beatId) ?? getOrAssignZIndex(beatId, false)"
-                :parent-block-id="block.id"
-                @click="selectBeat(project.beats.find(b => b.id === beatId)!)"
-                @dragstart="handleBeatDragStart"
-                @dragmove="handleBeatDragMove"
-                @dragend="handleBeatDragEnd"
-                @delete="handleDeleteBeat"
-              />
-            </template>
-          </template>
-        </BlockCard>
-
-        <!-- Beat Group Cards NOT in blocks (rendered second, higher z-index than blocks) -->
+        <!-- Beat Group Cards -->
         <BeatGroupCard
-          v-for="group in project.beatGroups.filter(g => !projectService.groupBelongsToBlock(project, g.id))"
+          v-for="group in project.beatGroups"
           :key="group.id"
           :group="group"
           :zoom="zoom"
@@ -350,17 +243,17 @@
           @delete="handleDeleteGroup"
         />
 
-        <!-- Group Connection Lines (from group header to first beat) for groups NOT in blocks -->
+        <!-- Group Connection Lines (from group header to first beat) -->
         <GroupConnectionLine
-          v-for="group in project.beatGroups.filter(g => g.beatIds.length > 0 && !projectService.groupBelongsToBlock(project, g.id))"
+          v-for="group in project.beatGroups.filter(g => g.beatIds.length > 0)"
           :key="`group-line-${group.id}`"
           :group="group"
           :beat="project.beats.find(b => b.id === group.beatIds[0])!"
         />
 
-        <!-- Beat Cards that belong to groups NOT in blocks -->
+        <!-- Beat Cards that belong to groups -->
         <template
-          v-for="group in project.beatGroups.filter(g => !projectService.groupBelongsToBlock(project, g.id))"
+          v-for="group in project.beatGroups"
           :key="`group-${group.id}-beats-container`"
         >
           <BeatCard
@@ -384,12 +277,9 @@
           />
         </template>
 
-        <!-- Beat Cards NOT in blocks or groups -->
+        <!-- Beat Cards NOT in groups -->
         <BeatCard
-          v-for="beat in project.beats.filter(b => 
-            !projectService.belongsToBeatGroup(project, b.id) && 
-            !projectService.belongsToBlock(project, b.id)
-          )"
+          v-for="beat in project.beats.filter(b => !projectService.belongsToBeatGroup(project, b.id))"
           :key="beat.id"
           :beat="beat"
           :beat-type="getBeatType(beat.typeId)"
@@ -429,7 +319,6 @@
       @update-project="handleUpdateProject"
       @update-beat="handleUpdateBeat"
       @update-group="handleUpdateGroup"
-      @update-block="handleUpdateBlock"
     />
 
     <!-- New Beat Dialog -->
@@ -445,13 +334,12 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
-import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import { dragAndDropService } from '@/services/DragAndDropService'
 import { positionCalculationService } from '@/services/PositionCalculationService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
-import BlockCard from '@/presentation/components/BlockCard.vue'
 import GroupConnectionLine from '@/presentation/components/GroupConnectionLine.vue'
 // @ts-ignore - Component reserved for future features
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -477,8 +365,8 @@ const canvasRef = ref<HTMLElement | null>(null)
 
 // Selected entity for properties panel
 interface SelectedEntity {
-  type: 'project' | 'beat' | 'group' | 'block'
-  data: Project | Beat | BeatGroup | Block
+  type: 'project' | 'beat' | 'group'
+  data: Project | Beat | BeatGroup
 }
 const selectedEntity = ref<SelectedEntity | null>({
   type: 'project',
@@ -504,19 +392,11 @@ const isDraggingGroup = ref(false)
 const draggingGroupId = ref<string | null>(null)
 const groupDragStartPosition = ref({ x: 0, y: 0 })
 
-// Block drag state
-const isDraggingBlock = ref(false)
-const draggingBlockId = ref<string | null>(null)
-const blockDragStartPosition = ref({ x: 0, y: 0 })
-
 // Beat-to-Group hover state (for highlighting groups during beat drag)
 const hoveredGroupId = ref<string | null>(null)
 
 // Beat-to-Beat hover state (for highlighting beats in groups during beat drag)
 const hoveredBeatId = ref<string | null>(null)
-
-// Hover state for Blocks (when dragging beats or groups over blocks)
-const hoveredBlockId = ref<string | null>(null)
 
 // Z-index stack management
 // Blocks: base 1, Beats/Groups: dynamic (1000+), Dragging: max + 10000
@@ -705,17 +585,6 @@ function handleCreateGroup() {
   console.log('Group created:', newGroup.name)
 }
 
-function handleCreateBlock() {
-  const blockName = prompt(t('toolbar.createBlock'), 'New Block')
-  if (!blockName) return
-  
-  const newBlock = projectService.createBlock(project.value, blockName)
-  project.value = projectService.addBlock(project.value, newBlock)
-  projectService.saveCurrentProject(project.value)
-  
-  console.log('Block created:', newBlock.name)
-}
-
 function handleZoomIn() {
   zoom.value = Math.min(zoom.value + 0.1, 2)
 }
@@ -726,8 +595,8 @@ function handleZoomOut() {
 
 // Canvas panning handlers
 function handleCanvasMouseDown(event: MouseEvent) {
-  // Don't pan if dragging a beat, group, or block
-  if (isDraggingBeat.value || isDraggingGroup.value || isDraggingBlock.value) return
+  // Don't pan if dragging a beat or group
+  if (isDraggingBeat.value || isDraggingGroup.value) return
   
   const target = event.target as HTMLElement
   if (target.closest('[data-testid="beat-card"]') || target.closest('[data-group-id]')) {
@@ -853,9 +722,8 @@ function handleBeatDragEnd(beatId: string) {
   project.value = dragAndDropService.handleBeatDragEnd(
     project.value,
     beatId,
-    hoveredBeatId.value,
     hoveredGroupId.value,
-    hoveredBlockId.value
+    hoveredBeatId.value
   )
   
   // Clear drag state
@@ -863,7 +731,6 @@ function handleBeatDragEnd(beatId: string) {
   draggingBeatId.value = null
   hoveredBeatId.value = null
   hoveredGroupId.value = null
-  hoveredBlockId.value = null
   
   // Save project
   projectService.saveCurrentProject(project.value)
@@ -923,124 +790,24 @@ function handleGroupDragMove(groupId: string, deltaX: number, deltaY: number) {
       })
     }
   }
-  
-  // Check for block collisions during group drag
-  checkGroupBlockCollision(newX, newY)
 }
 
 function handleGroupDragEnd(groupId: string) {
   if (!isDraggingGroup.value || draggingGroupId.value !== groupId) return
   
-  // Drop group into Block with horizontal alignment
-  if (hoveredBlockId.value) {
-    const targetBlock = project.value.blocks.find(b => b.id === hoveredBlockId.value)
-    if (targetBlock) {
-      // Remove group from any existing block
-      const currentBlock = projectService.getBlockForGroup(project.value, groupId)
-      if (currentBlock) {
-        project.value = projectService.removeGroupFromBlock(project.value, groupId, currentBlock.id)
-      }
-      
-      // Add group to the hovered block (this calls reorganizeBlockContents internally)
-      project.value = projectService.addGroupToBlock(project.value, groupId, hoveredBlockId.value)
-      
-      console.log('Group dropped into block:', hoveredBlockId.value)
-    }
-    
-    // Clear drag state
-    isDraggingGroup.value = false
-    draggingGroupId.value = null
-    hoveredBlockId.value = null
-    
-    // Save project
-    projectService.saveCurrentProject(project.value)
-    console.log('Group dropped into block with horizontal alignment')
-    return
-  }
-  
-  // If dragged out of a block, remove from block
-  const currentBlock = projectService.getBlockForGroup(project.value, groupId)
-  if (currentBlock) {
-    // Check if group is still inside the block bounds
-    const group = project.value.beatGroups.find(g => g.id === groupId)
-    if (group) {
-      const isInsideBlock = isPointInsideBlock(group.position, currentBlock)
-      if (!isInsideBlock) {
-        project.value = projectService.removeGroupFromBlock(project.value, groupId, currentBlock.id)
-        console.log('Group removed from block')
-      }
-    }
-  }
-  
   isDraggingGroup.value = false
   draggingGroupId.value = null
-  hoveredBlockId.value = null
   
   // Save project with updated group position
   projectService.saveCurrentProject(project.value)
   console.log('Group position saved')
 }
 
-// Block drag handlers
-function handleBlockDragStart(blockId: string) {
-  isDraggingBlock.value = true
-  draggingBlockId.value = blockId
-  
-  const block = project.value.blocks.find(b => b.id === blockId)
-  if (!block) return
-  
-  blockDragStartPosition.value = { ...block.position }
-  console.log('Block drag started:', block.name)
-}
-
-function handleBlockDragMove(blockId: string, deltaX: number, deltaY: number) {
-  if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
-  
-  const block = project.value.blocks.find(b => b.id === blockId)
-  if (!block) return
-  
-  // Calculate new position accounting for zoom
-  const deltaXScaled = deltaX / zoom.value
-  const deltaYScaled = deltaY / zoom.value
-  
-  // Add delta to current position
-  const newX = block.position.x + deltaXScaled
-  const newY = block.position.y + deltaYScaled
-  
-  // Update block position
-  project.value = projectService.updateBlock(project.value, blockId, {
-    position: { x: newX, y: newY }
-  })
-}
-
-function handleBlockDragEnd(blockId: string) {
-  if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
-  
-  isDraggingBlock.value = false
-  draggingBlockId.value = null
-  
-  // Save project with updated block position
-  projectService.saveCurrentProject(project.value)
-  console.log('Block position saved')
-}
-
-function handleBlockResize(blockId: string, newSize: { width: number; height: number }, newPosition?: { x: number; y: number }) {
-  const updates: Partial<Block> = { size: newSize }
-  if (newPosition) {
-    updates.position = newPosition
-  }
-  
-  project.value = projectService.updateBlock(project.value, blockId, updates)
-  
-  // Save immediately for real-time feedback
-  projectService.saveCurrentProject(project.value)
-}
-
 // Detect if dragged beat is over a BeatGroup or Beat in group
 function detectGroupHover(beatX: number, beatY: number) {
-  const BEAT_WIDTH = 400
+  const BEAT_WIDTH = 424 // 400px + 12px padding left + 12px padding right (v-card-text pa-3)
   const BEAT_HEIGHT = 80
-  const GROUP_WIDTH = 430
+  const GROUP_WIDTH = 424 // Same as BEAT_WIDTH
   const GROUP_HEIGHT = 50
   
   // Use center point of dragged element for more precise collision detection
@@ -1060,7 +827,6 @@ function detectGroupHover(beatX: number, beatY: number) {
   if (isDraggingGroup.value) {
     hoveredBeatId.value = null
     hoveredGroupId.value = null
-    hoveredBlockId.value = null
     return
   }
   
@@ -1076,7 +842,7 @@ function detectGroupHover(beatX: number, beatY: number) {
       if (!groupBeat) continue
       
       // FIX: Use absolute position (accounts for parent block)
-      const absolutePos = positionCalculationService.getBeatAbsolutePosition(groupBeat, project.value)
+      const absolutePos = positionCalculationService.getAbsoluteBeatPosition(groupBeat, project.value)
       const groupBeatLeft = absolutePos.x
       const groupBeatRight = absolutePos.x + BEAT_WIDTH
       const groupBeatTop = absolutePos.y
@@ -1105,7 +871,7 @@ function detectGroupHover(beatX: number, beatY: number) {
     if (isDraggingGroup.value && draggingGroupId.value === group.id) continue
     
     // FIX: Use absolute position (accounts for parent block)
-    const absolutePos = positionCalculationService.getGroupAbsolutePosition(group, project.value)
+    const absolutePos = positionCalculationService.getAbsoluteGroupPosition(group)
     const groupLeft = absolutePos.x
     const groupRight = absolutePos.x + GROUP_WIDTH
     const groupTop = absolutePos.y
@@ -1126,138 +892,16 @@ function detectGroupHover(beatX: number, beatY: number) {
     }
   }
   
-  // DIAGNOSTIC MODE - Block collision detection ENABLED for visual feedback (hover)
-  // Drop functionality remains DISABLED
-  // Use CENTER POINT with DOM coordinates (not canvas coordinates)
-  
-  for (const block of project.value.blocks) {
-    // Get actual DOM bounds of the BlockCard element
-    const blockElement = document.querySelector(`[data-block-id="${block.id}"]`)
-    if (!blockElement) continue
-    
-    const blockRect = blockElement.getBoundingClientRect()
-    const canvasRect = canvasRef.value?.getBoundingClientRect()
-    if (!canvasRect) continue
-    
-    // Convert beat center from canvas coordinates to viewport coordinates
-    const beatCenterViewportX = canvasRect.left + beatCenterX
-    const beatCenterViewportY = canvasRect.top + beatCenterY
-    
-    // Check if CENTER of beat is inside the block's VISUAL bounds
-    const isCenterInside = (
-      beatCenterViewportX > blockRect.left &&
-      beatCenterViewportX < blockRect.right &&
-      beatCenterViewportY > blockRect.top &&
-      beatCenterViewportY < blockRect.bottom
-    )
-    
-    // DIAGNOSTIC LOGGING when hover CHANGES (not every frame)
-    if (isCenterInside && hoveredBlockId.value !== block.id) {
-      console.log('🟢 HOVER ACTIVATED on Block (DOM-based)', {
-        blockId: block.id,
-        beatCenterCanvas: { x: Math.round(beatCenterX), y: Math.round(beatCenterY) },
-        beatCenterViewport: { x: Math.round(beatCenterViewportX), y: Math.round(beatCenterViewportY) },
-        blockBoundsViewport: { 
-          left: Math.round(blockRect.left), 
-          right: Math.round(blockRect.right), 
-          top: Math.round(blockRect.top), 
-          bottom: Math.round(blockRect.bottom) 
-        }
-      })
-      hoveredBlockId.value = block.id
-      hoveredGroupId.value = null
-      hoveredBeatId.value = null
-      return
-    } else if (isCenterInside) {
-      // Still hovering, don't log
-      hoveredBlockId.value = block.id
-      hoveredGroupId.value = null
-      hoveredBeatId.value = null
-      return
-    }
-  }
-  
-  // No collision found - log if we're leaving a hover
-  if (hoveredBlockId.value !== null) {
-    console.log('🔴 HOVER DEACTIVATED')
-  }
+  // No collision found
   hoveredGroupId.value = null
   hoveredBeatId.value = null
-  hoveredBlockId.value = null
 }
 
 /**
  * Check if a dragging BeatGroup collides with any Block
  */
 // @ts-ignore - Parameters temporarily unused during diagnostics
-function checkGroupBlockCollision(groupX: number, groupY: number) {
-  // DIAGNOSTIC MODE - Block collision detection ENABLED for visual feedback (hover)
-  // Drop functionality remains DISABLED
-  const GROUP_WIDTH = 430
-  const GROUP_HEIGHT = 50
-  
-  // Use center point for collision detection
-  const groupCenterX = groupX + GROUP_WIDTH / 2
-  const groupCenterY = groupY + GROUP_HEIGHT / 2
-  
-  // Check collision with each Block using DOM coordinates (not canvas coordinates)
-  for (const block of project.value.blocks) {
-    // Get actual DOM bounds of the BlockCard element
-    const blockElement = document.querySelector(`[data-block-id="${block.id}"]`)
-    if (!blockElement) continue
-    
-    const blockRect = blockElement.getBoundingClientRect()
-    const canvasRect = canvasRef.value?.getBoundingClientRect()
-    if (!canvasRect) continue
-    
-    // Convert group center from canvas coordinates to viewport coordinates
-    const groupCenterViewportX = canvasRect.left + groupCenterX
-    const groupCenterViewportY = canvasRect.top + groupCenterY
-    
-    // Check if CENTER of group is inside the block's VISUAL bounds
-    const isCenterInside = (
-      groupCenterViewportX > blockRect.left &&
-      groupCenterViewportX < blockRect.right &&
-      groupCenterViewportY > blockRect.top &&
-      groupCenterViewportY < blockRect.bottom
-    )
-    
-    // DIAGNOSTIC LOGGING when hover is detected
-    if (isCenterInside && hoveredBlockId.value !== block.id) {
-      console.log('🟢 GROUP HOVER ACTIVATED on Block (DOM-based)', {
-        blockId: block.id,
-        groupCenterCanvas: { x: Math.round(groupCenterX), y: Math.round(groupCenterY) },
-        groupCenterViewport: { x: Math.round(groupCenterViewportX), y: Math.round(groupCenterViewportY) },
-        blockBoundsViewport: { 
-          left: Math.round(blockRect.left), 
-          right: Math.round(blockRect.right), 
-          top: Math.round(blockRect.top), 
-          bottom: Math.round(blockRect.bottom) 
-        }
-      })
-      hoveredBlockId.value = block.id
-      return
-    } else if (isCenterInside) {
-      hoveredBlockId.value = block.id
-      return
-    }
-  }
-  
-  // No collision found
-  hoveredBlockId.value = null
-}
 
-/**
- * Check if a point is inside a Block
- */
-function isPointInsideBlock(point: { x: number; y: number }, block: Block): boolean {
-  return (
-    point.x >= block.position.x &&
-    point.x <= block.position.x + block.size.width &&
-    point.y >= block.position.y &&
-    point.y <= block.position.y + block.size.height
-  )
-}
 
 // Group editing handlers
 function selectGroup(group: BeatGroup) {
@@ -1269,14 +913,6 @@ function selectGroup(group: BeatGroup) {
 }
 
 // Block editing handlers
-function selectBlock(block: Block) {
-  selectedEntity.value = {
-    type: 'block',
-    data: block
-  }
-  console.log('Block selected:', block.name)
-}
-
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 // @ts-ignore - Handler for group updates
 function handleUpdateGroup(updatedGroup: BeatGroup) {
@@ -1293,21 +929,7 @@ function handleUpdateGroup(updatedGroup: BeatGroup) {
   console.log('Group updated:', updatedGroup.name)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Handler for block updates
-function handleUpdateBlock(updatedBlock: Block) {
-  project.value = projectService.updateBlock(project.value, updatedBlock.id, updatedBlock)
-  projectService.saveCurrentProject(project.value)
-  
-  // Update selected entity with the new data
-  if (selectedEntity.value?.type === 'block' && selectedEntity.value.data.id === updatedBlock.id) {
-    selectedEntity.value = {
-      type: 'block',
-      data: updatedBlock
-    }
-  }
-  console.log('Block updated:', updatedBlock.name)
-}
+
 
 function handleDeleteBeat(beatId: string) {
   const beat = project.value.beats.find((b: Beat) => b.id === beatId)
@@ -1358,27 +980,6 @@ function handleDeleteGroup(groupId: string) {
   }
   
   console.log('Group deleted:', groupId)
-}
-
-function handleDeleteBlock(blockId: string) {
-  const block = project.value.blocks.find((b: Block) => b.id === blockId)
-  if (!block) return
-  
-  const confirmed = confirm(t('blockProperties.deleteConfirm', { name: block.name }))
-  if (!confirmed) return
-  
-  project.value = projectService.deleteBlock(project.value, blockId)
-  projectService.saveCurrentProject(project.value)
-  
-  // Clear selection if deleted block was selected
-  if (selectedEntity.value?.type === 'block') {
-    selectedEntity.value = {
-      type: 'project',
-      data: project.value
-    }
-  }
-  
-  console.log('Block deleted:', blockId)
 }
 
 </script>

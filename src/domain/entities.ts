@@ -49,7 +49,6 @@ export interface Project {
   beats: Beat[]
   beatTypes: BeatType[]
   beatGroups: BeatGroup[] // User-defined groups
-  blocks: Block[] // User-defined blocks (containers for groups)
   createdAt: string
   updatedAt: string
 }
@@ -63,26 +62,6 @@ export interface BeatGroup {
   position: Position // Visual position on canvas
   collapsed: boolean // Whether the group is collapsed in the UI
   order: number // Display order
-  createdAt: string
-  updatedAt: string
-}
-
-export interface BlockElement {
-  id: string
-  type: 'beat' | 'group'
-}
-
-export interface Block {
-  id: string
-  name: string
-  description?: string
-  backgroundColor: string // Solid background color (hex)
-  position: Position // Top-left corner position
-  size: { width: number; height: number } // Block dimensions
-  groupIds: string[] // IDs of BeatGroups that belong to this block
-  beatIds: string[] // IDs of individual Beats that belong to this block (without group)
-  elements: BlockElement[] // Ordered list of elements (beats and groups) for layout
-  order: number // Display order (z-index will be derived from this)
   createdAt: string
   updatedAt: string
 }

@@ -1,102 +1,51 @@
-import type { Position, Block, Beat, BeatGroup, Project } from '@/domain/entities'
+import type { Beat, BeatGroup, Position } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 
 /**
- * Service for position calculations
- * Handles conversions between relative and absolute positions, especially for elements in blocks
+ * Service for calculating positions of beats within groups
  */
 export class PositionCalculationService {
-  /**
-   * Get absolute position of a beat (accounting for parent block if any)
-   * @param beat - The beat to get position for
-   * @param project - Current project state
-   * @returns Absolute position on canvas
-   */
-  getBeatAbsolutePosition(beat: Beat, project: Project): Position {
-    const parentBlock = projectService.getBlockForBeat(project, beat.id)
+  private static readonly GROUP_HEADER_HEIGHT = 50
+  private static readonly BEAT_HEIGHT = 80
+  private static readonly GAP = 10
 
-    if (parentBlock) {
-      return {
-        x: beat.position.x + parentBlock.position.x,
-        y: beat.position.y + parentBlock.position.y
-      }
+  /**
+   * Get absolute position of a beat (accounting for group container)
+   */
+  getAbsoluteBeatPosition(beat: Beat, project: any): Position {
+    const parentGroup = projectService.getGroupForBeat(project, beat.id)
+    
+    if (!parentGroup) {
+      // Beat is standalone
+      return beat.position
     }
 
+    // Beat is inside a group - position is already absolute on canvas
     return beat.position
   }
 
   /**
-   * Get absolute position of a beat group (accounting for parent block if any)
+   * Get absolute position of a group
    */
-  getGroupAbsolutePosition(group: BeatGroup, project: Project): Position {
-    const parentBlock = projectService.getBlockForGroup(project, group.id)
-
-    if (parentBlock) {
-      return {
-        x: group.position.x + parentBlock.position.x,
-        y: group.position.y + parentBlock.position.y
-      }
-    }
-
+  getAbsoluteGroupPosition(group: BeatGroup): Position {
+    // Groups are always at their absolute position
     return group.position
   }
 
   /**
-   * Convert absolute canvas position to relative position within a block
-   * @param absolutePosition - Position on canvas
-   * @param block - Parent block
-   * @returns Position relative to block's top-left corner
+   * Calculate the position of a beat within its group
    */
-  toRelativePosition(absolutePosition: Position, block: Block): Position {
+  calculateBeatPositionInGroup(group: BeatGroup, beatIndex: number): Position {
+    const beatY = group.position.y + 
+                  PositionCalculationService.GROUP_HEADER_HEIGHT + 
+                  PositionCalculationService.GAP +
+                  (beatIndex * (PositionCalculationService.BEAT_HEIGHT + PositionCalculationService.GAP))
+    
     return {
-      x: absolutePosition.x - block.position.x,
-      y: absolutePosition.y - block.position.y
-    }
-  }
-
-  /**
-   * Convert relative position to absolute canvas position
-   * @param relativePosition - Position relative to block
-   * @param block - Parent block
-   * @returns Absolute position on canvas
-   */
-  toAbsolutePosition(relativePosition: Position, block: Block): Position {
-    return {
-      x: relativePosition.x + block.position.x,
-      y: relativePosition.y + block.position.y
-    }
-  }
-
-  /**
-   * Scale a movement delta by zoom factor
-   */
-  scaleMovementByZoom(deltaX: number, deltaY: number, zoom: number): { deltaX: number; deltaY: number } {
-    return {
-      deltaX: deltaX / zoom,
-      deltaY: deltaY / zoom
-    }
-  }
-
-  /**
-   * Calculate new position after applying a delta
-   */
-  applyDelta(currentPosition: Position, deltaX: number, deltaY: number): Position {
-    return {
-      x: currentPosition.x + deltaX,
-      y: currentPosition.y + deltaY
-    }
-  }
-
-  /**
-   * Clamp position within bounds
-   */
-  clampPosition(position: Position, minX: number, minY: number, maxX: number, maxY: number): Position {
-    return {
-      x: Math.max(minX, Math.min(maxX, position.x)),
-      y: Math.max(minY, Math.min(maxY, position.y))
+      x: group.position.x,
+      y: beatY
     }
   }
 }
 
-// Export singleton instance
 export const positionCalculationService = new PositionCalculationService()

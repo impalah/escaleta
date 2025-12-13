@@ -24,9 +24,9 @@ const props = defineProps<{
   beat: Beat
 }>()
 
-const GROUP_WIDTH = 430
+const GROUP_WIDTH = 424 // Match BeatCard width (400px + 12px padding left + 12px padding right)
 const GROUP_HEIGHT = 50
-const BEAT_WIDTH = 400
+const BEAT_WIDTH = 424 // Same as GROUP_WIDTH
 
 // Calculate connection points (from bottom center of group to top center of beat)
 const startX = computed(() => props.group.position.x + GROUP_WIDTH / 2)

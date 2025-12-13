@@ -1,15 +1,15 @@
-import type { Beat, BeatGroup, Block, Position } from '@/domain/entities'
+import type { Beat, BeatGroup, Position } from '@/domain/entities'
 import { createBoundingBox, type BoundingBox } from '@/composables/useHoverable'
 
 /**
  * Service for detecting collisions between draggable elements
- * Centralizes collision logic used across Beat, BeatGroup, and Block components
+ * Centralizes collision logic used across Beat and BeatGroup components
  */
 export class CollisionDetectionService {
   // Standard dimensions for different element types
-  private static readonly BEAT_WIDTH = 400
+  private static readonly BEAT_WIDTH = 424 // 400px + 12px padding left + 12px padding right
   private static readonly BEAT_HEIGHT = 80
-  private static readonly GROUP_WIDTH = 430
+  private static readonly GROUP_WIDTH = 424 // Same as BEAT_WIDTH
   private static readonly GROUP_HEIGHT = 50
   private static readonly OVERLAP_THRESHOLD = 0.3 // 30% overlap required
 
@@ -20,7 +20,7 @@ export class CollisionDetectionService {
    * @param draggedHeight - Height of dragged element
    * @param allBeats - All beats to check against
    * @param excludeBeatId - Beat ID to exclude (the one being dragged)
-   * @param getAbsolutePosition - Function to get absolute position (handles blocks)
+   * @param getAbsolutePosition - Function to get absolute position
    */
   findHoveredBeat(
     draggedPosition: Position,
@@ -82,30 +82,6 @@ export class CollisionDetectionService {
   }
 
   /**
-   * Find which block (if any) contains the center point of a dragging element
-   */
-  findHoveredBlock(
-    draggedPosition: Position,
-    draggedWidth: number,
-    draggedHeight: number,
-    allBlocks: Block[]
-  ): Block | null {
-    // Use center point for block detection (more intuitive)
-    const centerPoint: Position = {
-      x: draggedPosition.x + draggedWidth / 2,
-      y: draggedPosition.y + draggedHeight / 2
-    }
-
-    for (const block of allBlocks) {
-      if (this.isPointInsideBlock(centerPoint, block)) {
-        return block
-      }
-    }
-
-    return null
-  }
-
-  /**
    * Check if two bounding boxes have significant overlap (>30% by default)
    */
   private hasSignificantOverlap(box1: BoundingBox, box2: BoundingBox): boolean {
@@ -124,27 +100,13 @@ export class CollisionDetectionService {
   }
 
   /**
-   * Check if a point is inside a block
-   */
-  isPointInsideBlock(point: Position, block: Block): boolean {
-    return (
-      point.x >= block.position.x &&
-      point.x <= block.position.x + block.size.width &&
-      point.y >= block.position.y &&
-      point.y <= block.position.y + block.size.height
-    )
-  }
-
-  /**
    * Get standard dimensions for element type
    */
-  static getDimensions(type: 'beat' | 'group' | 'block', customSize?: { width: number; height: number }) {
+  static getDimensions(type: 'beat' | 'group') {
     if (type === 'beat') {
       return { width: this.BEAT_WIDTH, height: this.BEAT_HEIGHT }
-    } else if (type === 'group') {
-      return { width: this.GROUP_WIDTH, height: this.GROUP_HEIGHT }
     } else {
-      return customSize ?? { width: 600, height: 400 }
+      return { width: this.GROUP_WIDTH, height: this.GROUP_HEIGHT }
     }
   }
 }

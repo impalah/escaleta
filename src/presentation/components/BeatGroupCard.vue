@@ -81,8 +81,7 @@ const groupStyle = computed(() => {
     position: 'absolute' as const,
     left: `${props.group.position.x}px`,
     top: `${props.group.position.y}px`,
-    transform: `scale(${props.zoom || 1})`,
-    transformOrigin: 'top left' as const,
+    // No transform scale here - zoom is applied by parent container to avoid double zoom
     cursor: isDragging.value ? 'grabbing' : 'grab',
     zIndex: props.zIndex || 1000 // Use assigned z-index or fallback
   }
@@ -97,13 +96,14 @@ function handleDelete(event: Event) {
 
 <style scoped>
 .beat-group-card {
-  width: 430px; /* 400px (beat width) + 15px each side */
+  width: 424px; /* Match BeatCard width (400px + 12px padding left + 12px padding right) */
   min-height: 50px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   border: 2px solid #5a67d8;
   border-radius: 8px;
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
   user-select: none;
+  box-sizing: border-box; /* Include border in width calculation */
   /* z-index is now dynamic via inline style */
 }
 
