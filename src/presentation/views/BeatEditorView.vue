@@ -243,14 +243,6 @@
           @delete="handleDeleteGroup"
         />
 
-        <!-- Group Connection Lines (from group header to first beat) -->
-        <GroupConnectionLine
-          v-for="group in project.beatGroups.filter(g => g.beatIds.length > 0)"
-          :key="`group-line-${group.id}`"
-          :group="group"
-          :beat="project.beats.find(b => b.id === group.beatIds[0])!"
-        />
-
         <!-- Beat Cards that belong to groups -->
         <template
           v-for="group in project.beatGroups"
@@ -340,7 +332,6 @@ import { dragAndDropService } from '@/services/DragAndDropService'
 import { positionCalculationService } from '@/services/PositionCalculationService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
-import GroupConnectionLine from '@/presentation/components/GroupConnectionLine.vue'
 // @ts-ignore - Component reserved for future features
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'

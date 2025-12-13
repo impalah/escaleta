@@ -34,14 +34,6 @@ vi.mock('@/presentation/components/BeatGroupCard.vue', () => ({
   }
 }))
 
-vi.mock('@/presentation/components/GroupConnectionLine.vue', () => ({
-  default: {
-    name: 'GroupConnectionLine',
-    template: '<div class="group-connection-line"></div>',
-    props: ['group', 'beat']
-  }
-}))
-
 vi.mock('@/presentation/components/PropertiesPanel.vue', () => ({
   default: {
     name: 'PropertiesPanel',

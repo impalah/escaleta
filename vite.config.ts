@@ -45,7 +45,8 @@ export default defineConfig({
         'src/plugins/**',
         'src/App.vue',
         '**/*.cjs',
-        'src/presentation/**' // Exclude all presentation layer (UI components/views)
+        'src/presentation/**', // Exclude all presentation layer (UI components/views)
+        'src/composables/useDraggable.ts' // Exclude DOM event handling (tested via E2E)
       ],
       thresholds: {
         lines: 80,

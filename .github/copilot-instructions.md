@@ -130,7 +130,6 @@ All production fields are **optional** and visible in the Properties Panel when 
 - `src/presentation/views/BeatEditorView.vue` - Main UI with drag & drop logic
 - `src/presentation/components/BeatCard.vue` - Individual beat card with drag handlers
 - `src/presentation/components/PropertiesPanel.vue` - Dockable properties panel (AutoCAD-style)
-- `src/presentation/components/ConnectionLine.vue` - SVG lines connecting beats
 - `src/i18n/helpers.ts` - Translation helpers for use outside components
 - `src/i18n/locales/en-US.ts` - English translations (primary)
 - `src/i18n/locales/es-ES.ts` - Spanish translations
@@ -172,7 +171,6 @@ escaleta/
   │  │     ├─ BeatEditDialog.vue    # Beat editing modal (deprecated, use PropertiesPanel)
   │  │     ├─ BeatGridView.vue      # Table view of beats
   │  │     ├─ BeatTypeSelectDialog.vue
-  │  │     ├─ ConnectionLine.vue    # SVG lines between connected beats
   │  │     ├─ PropertiesPanel.vue   # Dockable panel (AutoCAD-style)
   │  │     ├─ BeatPropertiesForm.vue
   │  │     └─ ProjectPropertiesForm.vue
