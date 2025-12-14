@@ -1,4 +1,4 @@
-import type { Project, Beat, BeatType, BeatGroup } from '@/domain/entities'
+import type { Project, Beat, BeatType, BeatGroup, Block } from '@/domain/entities'
 import { storageService } from '@/infrastructure/LocalStorageService'
 import { v4 as uuidv4 } from '@/utils/uuid'
 import { t, getNewBeatTitle } from '@/i18n/helpers'
@@ -16,9 +16,12 @@ export class ProjectService {
   loadCurrentProject(): Project {
     const saved = this.storageService.loadProject()
     if (saved) {
-      // Migrate old projects that don't have beatGroups
+      // Migrate old projects that don't have beatGroups or blocks
       if (!saved.beatGroups) {
         saved.beatGroups = []
+      }
+      if (!saved.blocks) {
+        saved.blocks = []
       }
       return saved
     }
@@ -48,6 +51,7 @@ export class ProjectService {
       beats: [],
       beatTypes: this.getDefaultBeatTypes(),
       beatGroups: [],
+      blocks: [],
       createdAt: now,
       updatedAt: now
     }
@@ -147,6 +151,7 @@ export class ProjectService {
       beats,
       beatTypes,
       beatGroups: [],
+      blocks: [],
       createdAt: now,
       updatedAt: now
     }
@@ -825,7 +830,7 @@ export class ProjectService {
    * Reposition all beats in a group according to their index
    * Beats are stacked vertically below the group header with proper spacing
    */
-  private repositionBeatsInGroup(project: Project, groupId: string): Project {
+  repositionBeatsInGroup(project: Project, groupId: string): Project {
     const group = project.beatGroups.find(g => g.id === groupId)
     if (!group) return project
 
@@ -1151,6 +1156,234 @@ export class ProjectService {
    */
   belongsToBeatGroup(project: Project, beatId: string): boolean {
     return project.beatGroups.some(g => g.beatIds.includes(beatId))
+  }
+
+  // ============================================================
+  // Block Management Methods
+  // ============================================================
+
+  /**
+   * Create a new Block with the specified groups
+   */
+  createBlock(project: Project, groupIds: string[], name: string = 'New Block'): Project {
+    if (groupIds.length < 2) {
+      console.warn('Block requires at least 2 groups')
+      return project
+    }
+
+    const now = new Date().toISOString()
+    const firstGroup = project.beatGroups.find(g => g.id === groupIds[0])
+    if (!firstGroup) return project
+
+    const BLOCK_HEIGHT = 50
+
+    // Position block ABOVE the first group so that groups appear below block header
+    const newBlock: Block = {
+      id: uuidv4(),
+      name,
+      groupIds,
+      position: { 
+        x: firstGroup.position.x,
+        y: firstGroup.position.y - BLOCK_HEIGHT // Block header above groups
+      },
+      createdAt: now,
+      updatedAt: now
+    }
+
+    const updatedProject = {
+      ...project,
+      blocks: [...(project.blocks || []), newBlock],
+      updatedAt: now
+    }
+
+    // Reposition groups horizontally within the block
+    // This will align them at block.y + BLOCK_HEIGHT
+    return this.repositionGroupsInBlock(updatedProject, newBlock.id)
+  }
+
+  /**
+   * Update a Block's properties
+   */
+  updateBlock(project: Project, blockId: string, updates: Partial<Pick<Block, 'name' | 'position'>>): Project {
+    const now = new Date().toISOString()
+
+    return {
+      ...project,
+      blocks: (project.blocks || []).map(b =>
+        b.id === blockId
+          ? { ...b, ...updates, updatedAt: now }
+          : b
+      ),
+      updatedAt: now
+    }
+  }
+
+  /**
+   * Delete a Block (groups remain but are no longer horizontally linked)
+   */
+  deleteBlock(project: Project, blockId: string): Project {
+    return {
+      ...project,
+      blocks: (project.blocks || []).filter(b => b.id !== blockId),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Add a group to a Block at a specific position (before targetGroupId)
+   * If targetGroupId is null, adds to the end
+   */
+  addGroupToBlock(project: Project, blockId: string, groupId: string, targetGroupId?: string): Project {
+    const block = (project.blocks || []).find(b => b.id === blockId)
+    if (!block) return project
+
+    // Remove group from any existing block first
+    let updatedProject = project
+    const oldBlock = this.getBlockForGroup(project, groupId)
+    if (oldBlock && oldBlock.id !== blockId) {
+      updatedProject = this.removeGroupFromBlock(updatedProject, oldBlock.id, groupId)
+    }
+
+    // Find insertion index
+    let newGroupIds: string[]
+    if (targetGroupId && block.groupIds.includes(targetGroupId)) {
+      const targetIndex = block.groupIds.indexOf(targetGroupId)
+      newGroupIds = [...block.groupIds]
+      // Remove groupId if already in the array (for reordering within same block)
+      const currentIndex = newGroupIds.indexOf(groupId)
+      if (currentIndex !== -1) {
+        newGroupIds.splice(currentIndex, 1)
+        // Adjust target index if needed
+        const adjustedTargetIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex
+        newGroupIds.splice(adjustedTargetIndex, 0, groupId)
+      } else {
+        newGroupIds.splice(targetIndex, 0, groupId)
+      }
+    } else {
+      // Add to end
+      newGroupIds = block.groupIds.includes(groupId)
+        ? block.groupIds
+        : [...block.groupIds, groupId]
+    }
+
+    updatedProject = {
+      ...updatedProject,
+      blocks: (updatedProject.blocks || []).map(b =>
+        b.id === blockId
+          ? { ...b, groupIds: newGroupIds, updatedAt: new Date().toISOString() }
+          : b
+      ),
+      updatedAt: new Date().toISOString()
+    }
+
+    // Reposition groups
+    updatedProject = this.repositionGroupsInBlock(updatedProject, blockId)
+    
+    // Reposition beats in all groups of the block
+    const updatedBlock = (updatedProject.blocks || []).find(b => b.id === blockId)
+    if (updatedBlock) {
+      updatedBlock.groupIds.forEach(gId => {
+        updatedProject = this.repositionBeatsInGroup(updatedProject, gId)
+      })
+    }
+    
+    return updatedProject
+  }
+
+  /**
+   * Remove a group from a Block
+   * If only 1 group remains, delete the Block
+   */
+  removeGroupFromBlock(project: Project, blockId: string, groupId: string): Project {
+    const block = (project.blocks || []).find(b => b.id === blockId)
+    if (!block) return project
+
+    const newGroupIds = block.groupIds.filter(id => id !== groupId)
+
+    // If only 1 group left, delete the block
+    if (newGroupIds.length <= 1) {
+      return this.deleteBlock(project, blockId)
+    }
+
+    // Update block with remaining groups
+    let updatedProject = {
+      ...project,
+      blocks: (project.blocks || []).map(b =>
+        b.id === blockId
+          ? { ...b, groupIds: newGroupIds, updatedAt: new Date().toISOString() }
+          : b
+      ),
+      updatedAt: new Date().toISOString()
+    }
+
+    // Reposition remaining groups to fill the gap
+    updatedProject = this.repositionGroupsInBlock(updatedProject, blockId)
+    
+    // Reposition beats in all remaining groups
+    newGroupIds.forEach(gId => {
+      updatedProject = this.repositionBeatsInGroup(updatedProject, gId)
+    })
+    
+    return updatedProject
+  }
+
+  /**
+   * Get the Block that contains a group
+   */
+  getBlockForGroup(project: Project, groupId: string): any | undefined {
+    return (project.blocks || []).find(b => b.groupIds.includes(groupId))
+  }
+
+  /**
+   * Reposition all groups within a Block horizontally
+   * Groups are aligned to the same Y position and spaced horizontally
+   */
+  repositionGroupsInBlock(project: Project, blockId: string): Project {
+    const block = (project.blocks || []).find(b => b.id === blockId)
+    if (!block) return project
+
+    const GROUP_WIDTH = 424
+    const GAP = 10
+    const BLOCK_HEIGHT = 50 // Height of the block header
+
+    // All groups align below the block header
+    const baseY = block.position.y + BLOCK_HEIGHT
+
+    return {
+      ...project,
+      beatGroups: project.beatGroups.map(group => {
+        const indexInBlock = block.groupIds.indexOf(group.id)
+        
+        if (indexInBlock !== -1) {
+          // Calculate horizontal position: x = block.x + (index * (GROUP_WIDTH + GAP))
+          const newX = block.position.x + (indexInBlock * (GROUP_WIDTH + GAP))
+          
+          return {
+            ...group,
+            position: {
+              x: newX,
+              y: baseY
+            },
+            updatedAt: new Date().toISOString()
+          }
+        }
+        return group
+      }),
+      updatedAt: new Date().toISOString()
+    }
+  }
+
+  /**
+   * Calculate the width of a Block based on its groups
+   */
+  getBlockWidth(block: any): number {
+    const GROUP_WIDTH = 424
+    const GAP = 10
+    const numGroups = block.groupIds.length
+    
+    if (numGroups === 0) return GROUP_WIDTH
+    
+    return (numGroups * GROUP_WIDTH) + ((numGroups - 1) * GAP)
   }
 
   // TODO: Implement export to JSON

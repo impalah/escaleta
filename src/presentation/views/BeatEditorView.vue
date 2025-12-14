@@ -228,6 +228,22 @@
           transformOrigin: 'top left' 
         }"
       >
+        <!-- Block Cards (rendered first, behind groups) -->
+        <BlockCard
+          v-for="block in project.blocks || []"
+          :key="block.id"
+          :block="block"
+          :block-width="projectService.getBlockWidth(block)"
+          :zoom="zoom"
+          :is-hovered="hoveredBlockId === block.id"
+          :z-index="getOrAssignZIndex(block.id, isDraggingBlock && draggingBlockId === block.id)"
+          @click="selectBlock(block)"
+          @dragstart="handleBlockDragStart"
+          @dragmove="handleBlockDragMove"
+          @dragend="handleBlockDragEnd"
+          @delete="handleDeleteBlock"
+        />
+
         <!-- Beat Group Cards -->
         <BeatGroupCard
           v-for="group in project.beatGroups"
@@ -311,6 +327,7 @@
       @update-project="handleUpdateProject"
       @update-beat="handleUpdateBeat"
       @update-group="handleUpdateGroup"
+      @update-block="handleUpdateBlock"
     />
 
     <!-- New Beat Dialog -->
@@ -326,12 +343,13 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
-import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import { dragAndDropService } from '@/services/DragAndDropService'
 import { positionCalculationService } from '@/services/PositionCalculationService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
+import BlockCard from '@/presentation/components/BlockCard.vue'
 // @ts-ignore - Component reserved for future features
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
@@ -356,8 +374,8 @@ const canvasRef = ref<HTMLElement | null>(null)
 
 // Selected entity for properties panel
 interface SelectedEntity {
-  type: 'project' | 'beat' | 'group'
-  data: Project | Beat | BeatGroup
+  type: 'project' | 'beat' | 'group' | 'block'
+  data: Project | Beat | BeatGroup | Block
 }
 const selectedEntity = ref<SelectedEntity | null>({
   type: 'project',
@@ -383,11 +401,19 @@ const isDraggingGroup = ref(false)
 const draggingGroupId = ref<string | null>(null)
 const groupDragStartPosition = ref({ x: 0, y: 0 })
 
+// Block drag state
+const isDraggingBlock = ref(false)
+const draggingBlockId = ref<string | null>(null)
+const blockDragStartPosition = ref({ x: 0, y: 0 })
+
 // Beat-to-Group hover state (for highlighting groups during beat drag)
 const hoveredGroupId = ref<string | null>(null)
 
 // Beat-to-Beat hover state (for highlighting beats in groups during beat drag)
 const hoveredBeatId = ref<string | null>(null)
+
+// Block hover state (for highlighting blocks during block drag)
+const hoveredBlockId = ref<string | null>(null)
 
 // Z-index stack management
 // Blocks: base 1, Beats/Groups: dynamic (1000+), Dragging: max + 10000
@@ -781,15 +807,26 @@ function handleGroupDragMove(groupId: string, deltaX: number, deltaY: number) {
       })
     }
   }
+  
+  // Detect if dragged group is over another group (for block creation)
+  detectGroupToGroupHover(newX, newY, groupId)
 }
 
 function handleGroupDragEnd(groupId: string) {
   if (!isDraggingGroup.value || draggingGroupId.value !== groupId) return
   
+  // Use dragAndDropService to handle block creation/update logic
+  project.value = dragAndDropService.handleGroupDragEnd(
+    project.value,
+    groupId,
+    hoveredGroupId.value
+  )
+  
   isDraggingGroup.value = false
   draggingGroupId.value = null
+  hoveredGroupId.value = null
   
-  // Save project with updated group position
+  // Save project with updated group position and block relationships
   projectService.saveCurrentProject(project.value)
   console.log('Group position saved')
 }
@@ -889,6 +926,47 @@ function detectGroupHover(beatX: number, beatY: number) {
 }
 
 /**
+ * Detect if a dragging BeatGroup collides with another BeatGroup (for block creation)
+ */
+function detectGroupToGroupHover(groupX: number, groupY: number, draggingGroupId: string) {
+  const GROUP_WIDTH = 424
+  const GROUP_HEIGHT = 50
+  const OVERLAP_THRESHOLD = 0.3
+  
+  const groupLeft = groupX
+  const groupRight = groupX + GROUP_WIDTH
+  const groupTop = groupY
+  const groupBottom = groupY + GROUP_HEIGHT
+  
+  // Check collision with other groups (not the one being dragged)
+  for (const group of project.value.beatGroups) {
+    if (group.id === draggingGroupId) continue
+    
+    const otherLeft = group.position.x
+    const otherRight = group.position.x + GROUP_WIDTH
+    const otherTop = group.position.y
+    const otherBottom = group.position.y + GROUP_HEIGHT
+    
+    // Calculate overlap
+    const overlapWidth = Math.min(groupRight, otherRight) - Math.max(groupLeft, otherLeft)
+    const overlapHeight = Math.min(groupBottom, otherBottom) - Math.max(groupTop, otherTop)
+    
+    const hasOverlap = (
+      overlapWidth > 0 && overlapHeight > 0 &&
+      (overlapWidth * overlapHeight) > (GROUP_WIDTH * GROUP_HEIGHT * OVERLAP_THRESHOLD)
+    )
+    
+    if (hasOverlap) {
+      hoveredGroupId.value = group.id
+      return
+    }
+  }
+  
+  // No collision found
+  hoveredGroupId.value = null
+}
+
+/**
  * Check if a dragging BeatGroup collides with any Block
  */
 // @ts-ignore - Parameters temporarily unused during diagnostics
@@ -920,6 +998,97 @@ function handleUpdateGroup(updatedGroup: BeatGroup) {
   console.log('Group updated:', updatedGroup.name)
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+// @ts-ignore - Handler for block updates
+function handleUpdateBlock(updatedBlock: Block) {
+  project.value = projectService.updateBlock(project.value, updatedBlock.id, updatedBlock)
+  projectService.saveCurrentProject(project.value)
+  
+  // Update selected entity with the new data
+  if (selectedEntity.value?.type === 'block' && selectedEntity.value.data.id === updatedBlock.id) {
+    selectedEntity.value = {
+      type: 'block',
+      data: updatedBlock
+    }
+  }
+  console.log('Block updated:', updatedBlock.name)
+}
+
+// ============================================================
+// Block Drag Handlers
+// ============================================================
+
+function handleBlockDragStart(blockId: string) {
+  const result = dragAndDropService.handleBlockDragStart(project.value, blockId)
+  
+  isDraggingBlock.value = true
+  draggingBlockId.value = blockId
+  blockDragStartPosition.value = result.startPosition
+  
+  project.value = result.project
+  console.log('Block drag started:', blockId)
+}
+
+function handleBlockDragMove(blockId: string, deltaX: number, deltaY: number) {
+  if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
+  
+  // Calculate deltas accounting for zoom
+  const deltaXScaled = deltaX / zoom.value
+  const deltaYScaled = deltaY / zoom.value
+  
+  const result = dragAndDropService.handleBlockDragMove(
+    project.value,
+    blockId,
+    blockDragStartPosition.value,
+    deltaXScaled,
+    deltaYScaled
+  )
+  
+  project.value = result
+  
+  // Update start position for next delta
+  blockDragStartPosition.value = {
+    x: blockDragStartPosition.value.x + deltaXScaled,
+    y: blockDragStartPosition.value.y + deltaYScaled
+  }
+}
+
+function handleBlockDragEnd(blockId: string) {
+  if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
+  
+  project.value = dragAndDropService.handleBlockDragEnd(project.value, blockId)
+  
+  isDraggingBlock.value = false
+  draggingBlockId.value = null
+  
+  // Save project with updated block position
+  projectService.saveCurrentProject(project.value)
+  console.log('Block position saved')
+}
+
+function selectBlock(block: Block) {
+  selectedEntity.value = {
+    type: 'block',
+    data: block
+  }
+  console.log('Block selected:', block.name)
+}
+
+function handleDeleteBlock(blockId: string) {
+  if (confirm(t('messages.confirmDeleteBlock'))) {
+    project.value = projectService.deleteBlock(project.value, blockId)
+    projectService.saveCurrentProject(project.value)
+    
+    // Clear selection if deleted block was selected
+    if (selectedEntity.value?.type === 'block' && selectedEntity.value.data.id === blockId) {
+      selectedEntity.value = {
+        type: 'project',
+        data: project.value
+      }
+    }
+    console.log('Block deleted:', blockId)
+  }
+}
 
 
 function handleDeleteBeat(beatId: string) {

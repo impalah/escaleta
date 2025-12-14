@@ -41,6 +41,15 @@ vi.mock('@/application/ProjectService', () => ({
         return { ...g, beatIds: newBeatIds }
       })
       return { ...project, beatGroups }
+    }),
+    getBlockForGroup: vi.fn((project, groupId) => {
+      return (project.blocks || []).find((b: any) => b.groupIds.includes(groupId)) || null
+    }),
+    removeGroupFromBlock: vi.fn((project, blockId, groupId) => {
+      return project // Simplified mock
+    }),
+    repositionBeatsInGroup: vi.fn((project, groupId) => {
+      return project // Simplified mock
     })
   }
 }))
@@ -88,6 +97,7 @@ describe('DragAndDropService', () => {
           updatedAt: new Date().toISOString()
         }
       ],
+      blocks: [], // Add blocks array for Block functionality
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
@@ -203,10 +213,11 @@ describe('DragAndDropService', () => {
   })
 
   describe('handleGroupDragEnd', () => {
-    it('should return project as-is', () => {
-      const result = service.handleGroupDragEnd(mockProject, 'group1')
+    it('should handle group drag end with no hover', () => {
+      const result = service.handleGroupDragEnd(mockProject, 'group1', null)
 
-      expect(result).toBe(mockProject)
+      // Should return project (may be same or equivalent object)
+      expect(result).toEqual(mockProject)
     })
   })
 })

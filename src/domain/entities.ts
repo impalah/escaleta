@@ -42,17 +42,6 @@ export interface BeatType {
   icon: string // Material Design Icon name
 }
 
-export interface Project {
-  id: string
-  name: string
-  description: string
-  beats: Beat[]
-  beatTypes: BeatType[]
-  beatGroups: BeatGroup[] // User-defined groups
-  createdAt: string
-  updatedAt: string
-}
-
 export interface BeatGroup {
   id: string
   name: string
@@ -62,6 +51,27 @@ export interface BeatGroup {
   position: Position // Visual position on canvas
   collapsed: boolean // Whether the group is collapsed in the UI
   order: number // Display order
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Block {
+  id: string
+  name: string
+  groupIds: string[] // IDs of BeatGroups that belong to this block (ordered left to right)
+  position: Position // Visual position on canvas (top-left)
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Project {
+  id: string
+  name: string
+  description: string
+  beats: Beat[]
+  beatTypes: BeatType[]
+  beatGroups: BeatGroup[] // User-defined groups
+  blocks: Block[] // Horizontal groupings of BeatGroups
   createdAt: string
   updatedAt: string
 }

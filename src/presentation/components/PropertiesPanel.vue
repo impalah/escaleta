@@ -70,6 +70,11 @@
           :group="selectedEntity.data as BeatGroup"
           @update="handleGroupUpdate"
         />
+        <BlockPropertiesForm
+          v-else-if="selectedEntity?.type === 'block'"
+          :block="selectedEntity.data as Block"
+          @update="handleBlockUpdate"
+        />
         <div
           v-else
           class="empty-state"
@@ -105,16 +110,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Beat, BeatType, Project, BeatGroup } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
 import ProjectPropertiesForm from './ProjectPropertiesForm.vue'
 import BeatPropertiesForm from './BeatPropertiesForm.vue'
 import GroupPropertiesForm from './GroupPropertiesForm.vue'
+import BlockPropertiesForm from './BlockPropertiesForm.vue'
 
 const { t } = useI18n()
 
 interface SelectedEntity {
-  type: 'project' | 'beat' | 'group'
-  data: Project | Beat | BeatGroup
+  type: 'project' | 'beat' | 'group' | 'block'
+  data: Project | Beat | BeatGroup | Block
 }
 
 const props = defineProps<{
@@ -126,6 +132,7 @@ const emit = defineEmits<{
   updateProject: [project: Project]
   updateBeat: [beat: Beat]
   updateGroup: [group: BeatGroup]
+  updateBlock: [block: Block]
 }>()
 
 // Panel state
@@ -152,6 +159,9 @@ const tabText = computed(() => {
   } else if (props.selectedEntity.type === 'group') {
     const groupData = props.selectedEntity.data as BeatGroup
     return `${t('propertiesPanel.group').toUpperCase()} - ${groupData.name}`
+  } else if (props.selectedEntity.type === 'block') {
+    const blockData = props.selectedEntity.data as Block
+    return `BLOCK - ${blockData.name}`
   }
   
   return t('propertiesPanel.project').toUpperCase()
@@ -188,6 +198,10 @@ function handleBeatUpdate(beat: Beat) {
 
 function handleGroupUpdate(group: BeatGroup) {
   emit('updateGroup', group)
+}
+
+function handleBlockUpdate(block: Block) {
+  emit('updateBlock', block)
 }
 
 // Resize functionality
