@@ -20,7 +20,6 @@
         backgroundColor: beatType?.color || '#9E9E9E'
       }"
       elevation="4"
-      @click="handleClick"
       @mousedown="handleMouseDown"
       @touchstart="handleTouchStart"
     >
@@ -89,13 +88,15 @@ const emit = defineEmits<{
 // Use draggable composable for unified drag behavior
 const {
   isDragging,
-  hasMoved,
   handleMouseDown,
   handleTouchStart,
   cleanup
 } = useDraggable({
   elementId: props.beat.id,
   dragThreshold: 10,
+  onClick: () => {
+    emit('click')
+  },
   onDragStart: (beatId) => {
     emit('dragstart', beatId)
   },
@@ -111,13 +112,6 @@ const {
 onUnmounted(() => {
   cleanup()
 })
-
-function handleClick() {
-  // Only emit click if we didn't drag
-  if (!hasMoved.value) {
-    emit('click')
-  }
-}
 
 function handleDelete(event: Event) {
   event.stopPropagation()

@@ -7,6 +7,7 @@ import { ref, type Ref } from 'vue'
 export interface DragOptions {
   elementId: string
   zoom?: Ref<number> | number
+  onClick?: (elementId: string) => void // Called on click without drag
   onDragStart?: (elementId: string) => void
   onDragMove?: (elementId: string, deltaX: number, deltaY: number) => void
   onDragEnd?: (elementId: string) => void
@@ -18,6 +19,7 @@ export function useDraggable(options: DragOptions) {
   const hasMoved = ref(false)
   const dragStartPos = ref({ x: 0, y: 0 })
   const touchIdentifier = ref<number | null>(null)
+  const dragStartCalled = ref(false) // Track if onDragStart has been called
   
   const DRAG_THRESHOLD = options.dragThreshold ?? 3
 
@@ -36,9 +38,10 @@ export function useDraggable(options: DragOptions) {
     
     isDragging.value = true
     hasMoved.value = false
+    dragStartCalled.value = false // Reset flag
     dragStartPos.value = { x: event.clientX, y: event.clientY }
     
-    options.onDragStart?.(options.elementId)
+    // DON'T call onDragStart here - wait for movement
     
     // Add global mouse listeners
     window.addEventListener('mousemove', handleMouseMove)
@@ -51,9 +54,12 @@ export function useDraggable(options: DragOptions) {
     const deltaX = event.clientX - dragStartPos.value.x
     const deltaY = event.clientY - dragStartPos.value.y
     
-    // Mark as moved if moved more than threshold
-    if (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD) {
+    // Check if moved beyond threshold
+    if (!hasMoved.value && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
       hasMoved.value = true
+      dragStartCalled.value = true
+      // Now we call onDragStart for the first time
+      options.onDragStart?.(options.elementId)
     }
     
     if (hasMoved.value) {
@@ -74,8 +80,14 @@ export function useDraggable(options: DragOptions) {
     
     isDragging.value = false
     hasMoved.value = false
+    dragStartCalled.value = false
     
-    options.onDragEnd?.(options.elementId)
+    if (wasDragging) {
+      options.onDragEnd?.(options.elementId)
+    } else {
+      // Was a click, not a drag
+      options.onClick?.(options.elementId)
+    }
     
     return wasDragging
   }
@@ -96,9 +108,10 @@ export function useDraggable(options: DragOptions) {
     
     isDragging.value = true
     hasMoved.value = false
+    dragStartCalled.value = false // Reset flag
     dragStartPos.value = { x: touch.clientX, y: touch.clientY }
     
-    options.onDragStart?.(options.elementId)
+    // DON'T call onDragStart here - wait for movement
     
     // Add global touch listeners
     window.addEventListener('touchmove', handleTouchMove, { passive: false })
@@ -117,9 +130,12 @@ export function useDraggable(options: DragOptions) {
     const deltaX = touch.clientX - dragStartPos.value.x
     const deltaY = touch.clientY - dragStartPos.value.y
     
-    // Mark as moved if moved more than threshold
-    if (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD) {
+    // Check if moved beyond threshold
+    if (!hasMoved.value && (Math.abs(deltaX) > DRAG_THRESHOLD || Math.abs(deltaY) > DRAG_THRESHOLD)) {
       hasMoved.value = true
+      dragStartCalled.value = true
+      // Now we call onDragStart for the first time
+      options.onDragStart?.(options.elementId)
     }
     
     if (hasMoved.value) {
@@ -142,8 +158,14 @@ export function useDraggable(options: DragOptions) {
     isDragging.value = false
     touchIdentifier.value = null
     hasMoved.value = false
+    dragStartCalled.value = false
     
-    options.onDragEnd?.(options.elementId)
+    if (wasDragging) {
+      options.onDragEnd?.(options.elementId)
+    } else {
+      // Was a tap, not a drag
+      options.onClick?.(options.elementId)
+    }
     
     return wasDragging
   }

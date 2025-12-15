@@ -17,7 +17,6 @@
       :class="{ 'is-dragging': isDragging }"
       color="rgba(103, 58, 183, 0.15)"
       elevation="2"
-      @click="handleClick"
       @mousedown="handleMouseDown"
       @touchstart="handleTouchStart"
     >
@@ -77,13 +76,15 @@ const emit = defineEmits<{
 // Use draggable composable
 const {
   isDragging,
-  hasMoved,
   handleMouseDown,
   handleTouchStart,
   cleanup
 } = useDraggable({
   elementId: props.block.id,
   dragThreshold: 10,
+  onClick: () => {
+    emit('click')
+  },
   onDragStart: (blockId) => {
     emit('dragstart', blockId)
   },
@@ -99,13 +100,6 @@ const {
 onUnmounted(() => {
   cleanup()
 })
-
-function handleClick() {
-  // Only emit click if we didn't drag
-  if (!hasMoved.value) {
-    emit('click')
-  }
-}
 
 function handleDelete(event: Event) {
   event.stopPropagation()

@@ -48,13 +48,15 @@ const emit = defineEmits<{
 // Use draggable composable for unified drag behavior
 const {
   isDragging,
-  hasMoved,
   handleMouseDown,
   handleTouchStart,
   cleanup
 } = useDraggable({
   elementId: props.group.id,
   dragThreshold: 3,
+  onClick: () => {
+    emit('click', props.group)
+  },
   onDragStart: (groupId) => {
     emit('dragstart', groupId)
   },
@@ -63,11 +65,6 @@ const {
   },
   onDragEnd: (groupId) => {
     emit('dragend', groupId)
-    
-    // If didn't move, treat as click
-    if (!hasMoved.value) {
-      emit('click', props.group)
-    }
   }
 })
 
