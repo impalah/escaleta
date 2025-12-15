@@ -76,7 +76,9 @@ const formatDate = (date: string) => {
   font-size: 1.25rem;
   font-weight: 500;
   margin-bottom: 24px;
-  color: rgba(103, 58, 183, 1);
+  color: #b39ddb;
+  border-bottom: 1px solid #444;
+  padding-bottom: 8px;
 }
 
 .info-section {
@@ -92,10 +94,32 @@ const formatDate = (date: string) => {
 
 .info-label {
   font-weight: 500;
-  color: rgba(0, 0, 0, 0.6);
+  color: #999;
 }
 
 .info-value {
-  color: rgba(0, 0, 0, 0.87);
+  color: #e0e0e0;
+}
+
+/* Override Vuetify dark theme colors for better contrast */
+:deep(.v-field) {
+  background-color: #1e1e1e;
+  color: #e0e0e0;
+}
+
+:deep(.v-field--focused) {
+  background-color: #252525;
+}
+
+:deep(.v-label) {
+  color: #999;
+}
+
+:deep(.v-field__input) {
+  color: #e0e0e0;
+}
+
+:deep(.v-select__selection) {
+  color: #e0e0e0;
 }
 </style>

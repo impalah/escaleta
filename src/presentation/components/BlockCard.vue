@@ -7,10 +7,21 @@
       left: `${block.position.x}px`,
       top: `${block.position.y}px`,
       width: `${blockWidth}px`,
-      zIndex: zIndex ?? 100
+      zIndex: zIndex ?? 50  /* MENOR que grupos (100) y beats (200) */
     }"
   >
-    <!-- Block Card -->
+    <!-- Fondo del Block con borde -->
+    <div
+      class="block-background"
+      :style="{
+        left: `${blockBackgroundBounds.offsetX}px`,
+        top: `${blockBackgroundBounds.offsetY}px`,
+        width: `${blockBackgroundBounds.width}px`,
+        height: `${blockBackgroundBounds.height}px`
+      }"
+    />
+
+    <!-- Block Card Header (draggable) -->
     <v-card
       data-testid="block-card"
       class="block-card"
@@ -53,8 +64,8 @@
 </template>
 
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
-import type { Block } from '@/domain/entities'
+import { onUnmounted, computed } from 'vue'
+import type { Block, BeatGroup, Beat } from '@/domain/entities'
 import { useDraggable } from '@/composables/useDraggable'
 
 const props = defineProps<{
@@ -63,6 +74,8 @@ const props = defineProps<{
   isHovered?: boolean
   zoom?: number
   zIndex?: number
+  groups: BeatGroup[]  // Grupos dentro del Block
+  beats: Beat[]        // Todos los beats para calcular bounds
 }>()
 
 const emit = defineEmits<{
@@ -72,6 +85,66 @@ const emit = defineEmits<{
   dragend: [blockId: string]
   delete: [blockId: string]
 }>()
+
+// Constantes
+const BLOCK_HEADER_HEIGHT = 50 // px
+const GROUP_HEIGHT = 50 // px
+const BEAT_HEIGHT = 80 // px
+const BLOCK_PADDING = 15 // px - padding alrededor del contenido
+
+// Calcular dimensiones del fondo del Block
+const blockBackgroundBounds = computed(() => {
+  if (props.groups.length === 0) {
+    // Block sin grupos - solo header
+    return {
+      width: props.blockWidth,
+      height: BLOCK_HEADER_HEIGHT,
+      offsetX: 0,
+      offsetY: 0
+    }
+  }
+
+  // Encontrar bounds de todos los grupos y sus beats
+  let minX = Infinity
+  let maxX = -Infinity
+  let minY = Infinity
+  let maxY = -Infinity
+
+  props.groups.forEach(group => {
+    const groupX = group.position.x
+    const groupY = group.position.y
+    const groupWidth = 424 // GROUP_WIDTH constante del proyecto
+
+    minX = Math.min(minX, groupX)
+    maxX = Math.max(maxX, groupX + groupWidth)
+    minY = Math.min(minY, groupY)
+    maxY = Math.max(maxY, groupY + GROUP_HEIGHT)
+
+    // Beats de este grupo (filtrando por beatIds del grupo)
+    const groupBeats = props.beats.filter(b => group.beatIds.includes(b.id))
+    groupBeats.forEach(beat => {
+      const beatX = beat.position.x
+      const beatY = beat.position.y
+      const beatWidth = 200 // BEAT_WIDTH
+
+      minX = Math.min(minX, beatX)
+      maxX = Math.max(maxX, beatX + beatWidth)
+      minY = Math.min(minY, beatY)
+      maxY = Math.max(maxY, beatY + BEAT_HEIGHT)
+    })
+  })
+
+  // El fondo debe englobar desde el header hasta el último elemento
+  const blockHeaderY = props.block.position.y
+  minY = Math.min(minY, blockHeaderY + BLOCK_HEADER_HEIGHT)
+
+  return {
+    width: (maxX - minX) + (BLOCK_PADDING * 2),
+    height: (maxY - blockHeaderY) + BLOCK_PADDING,
+    offsetX: minX - props.block.position.x - BLOCK_PADDING,
+    offsetY: 0 // Empieza en la posición Y del block
+  }
+})
 
 // Use draggable composable
 const {
@@ -112,7 +185,7 @@ function handleDelete(event: Event) {
   position: absolute;
   height: 50px;
   transition: none;
-  pointer-events: auto;
+  pointer-events: none; /* Los eventos pasan al fondo y al header */
 }
 
 .block-card-wrapper.is-dragging,
@@ -126,6 +199,15 @@ function handleDelete(event: Event) {
   box-shadow: 0 0 20px rgba(251, 191, 36, 0.6), 0 6px 20px rgba(0, 0, 0, 0.3) !important;
 }
 
+.block-background {
+  position: absolute;
+  background: rgba(103, 58, 183, 0.05); /* Fondo muy sutil */
+  border: 2px solid rgba(103, 58, 183, 0.3); /* Borde visible */
+  border-radius: 12px;
+  pointer-events: none; /* No intercepta eventos */
+  z-index: -1; /* Detrás del header */
+}
+
 .block-card {
   position: relative;
   height: 50px;
@@ -133,6 +215,8 @@ function handleDelete(event: Event) {
   transition: transform 0.2s, box-shadow 0.2s;
   user-select: none;
   border: 2px dashed rgba(103, 58, 183, 0.4);
+  pointer-events: auto; /* El header SÍ recibe eventos */
+  z-index: 1; /* Sobre el fondo */
 }
 
 .block-card:hover {

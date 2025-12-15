@@ -237,6 +237,8 @@
           :zoom="zoom"
           :is-hovered="hoveredBlockId === block.id"
           :z-index="getOrAssignZIndex(block.id, isDraggingBlock && draggingBlockId === block.id)"
+          :groups="getGroupsInBlock(block.id)"
+          :beats="project.beats"
           @click="selectBlock(block)"
           @dragstart="handleBlockDragStart"
           @dragmove="handleBlockDragMove"
@@ -1072,6 +1074,14 @@ function selectBlock(block: Block) {
     data: block
   }
   console.log('Block selected:', block.name)
+}
+
+// Helper para obtener grupos dentro de un Block
+function getGroupsInBlock(blockId: string) {
+  const block = project.value.blocks?.find(b => b.id === blockId)
+  if (!block) return []
+  
+  return project.value.beatGroups.filter(g => block.groupIds.includes(g.id))
 }
 
 function handleDeleteBlock(blockId: string) {
