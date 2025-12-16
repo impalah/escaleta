@@ -99,6 +99,16 @@ export default {
     updatedAt: 'Last Updated',
     deleteConfirm: 'Are you sure you want to delete block "{name}"?'
   },
+  laneProperties: {
+    name: 'Lane Name',
+    blocks: 'Blocks in Lane',
+    createdAt: 'Created At',
+    updatedAt: 'Last Updated'
+  },
+  messages: {
+    confirmDeleteBlock: 'Are you sure you want to delete this block? Groups will remain.',
+    confirmDeleteLane: 'Are you sure you want to delete this lane? Blocks will remain.'
+  },
   beatGrid: {
     order: 'Order',
     title: 'Title',

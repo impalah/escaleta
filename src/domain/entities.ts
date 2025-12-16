@@ -64,6 +64,15 @@ export interface Block {
   updatedAt: string
 }
 
+export interface Lane {
+  id: string
+  name: string
+  blockIds: string[] // IDs of Blocks that belong to this lane (ordered top to bottom)
+  position: Position // Visual position on canvas (top-left of header)
+  createdAt: string
+  updatedAt: string
+}
+
 export interface Project {
   id: string
   name: string
@@ -72,6 +81,7 @@ export interface Project {
   beatTypes: BeatType[]
   beatGroups: BeatGroup[] // User-defined groups
   blocks: Block[] // Horizontal groupings of BeatGroups
+  lanes: Lane[] // Vertical groupings of Blocks
   createdAt: string
   updatedAt: string
 }

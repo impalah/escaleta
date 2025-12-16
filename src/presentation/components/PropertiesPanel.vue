@@ -75,6 +75,11 @@
           :block="selectedEntity.data as Block"
           @update="handleBlockUpdate"
         />
+        <LanePropertiesForm
+          v-else-if="selectedEntity?.type === 'lane'"
+          :lane="selectedEntity.data as Lane"
+          @update="handleLaneUpdate"
+        />
         <div
           v-else
           class="empty-state"
@@ -110,17 +115,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup, Block, Lane } from '@/domain/entities'
 import ProjectPropertiesForm from './ProjectPropertiesForm.vue'
 import BeatPropertiesForm from './BeatPropertiesForm.vue'
 import GroupPropertiesForm from './GroupPropertiesForm.vue'
 import BlockPropertiesForm from './BlockPropertiesForm.vue'
+import LanePropertiesForm from './LanePropertiesForm.vue'
 
 const { t } = useI18n()
 
 interface SelectedEntity {
-  type: 'project' | 'beat' | 'group' | 'block'
-  data: Project | Beat | BeatGroup | Block
+  type: 'project' | 'beat' | 'group' | 'block' | 'lane'
+  data: Project | Beat | BeatGroup | Block | Lane
 }
 
 const props = defineProps<{
@@ -133,6 +139,7 @@ const emit = defineEmits<{
   updateBeat: [beat: Beat]
   updateGroup: [group: BeatGroup]
   updateBlock: [block: Block]
+  updateLane: [lane: Lane]
 }>()
 
 // Panel state
@@ -162,6 +169,9 @@ const tabText = computed(() => {
   } else if (props.selectedEntity.type === 'block') {
     const blockData = props.selectedEntity.data as Block
     return `BLOCK - ${blockData.name}`
+  } else if (props.selectedEntity.type === 'lane') {
+    const laneData = props.selectedEntity.data as Lane
+    return `LANE - ${laneData.name}`
   }
   
   return t('propertiesPanel.project').toUpperCase()
@@ -202,6 +212,10 @@ function handleGroupUpdate(group: BeatGroup) {
 
 function handleBlockUpdate(block: Block) {
   emit('updateBlock', block)
+}
+
+function handleLaneUpdate(lane: Lane) {
+  emit('updateLane', lane)
 }
 
 // Resize functionality

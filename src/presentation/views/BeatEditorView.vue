@@ -228,7 +228,22 @@
           transformOrigin: 'top left' 
         }"
       >
-        <!-- Block Cards (rendered first, behind groups) -->
+        <!-- Lane Cards (rendered first, behind blocks) -->
+        <LaneCard
+          v-for="lane in project.lanes || []"
+          :key="lane.id"
+          :lane="lane"
+          :lane-width="getLaneWidth(lane)"
+          :zoom="zoom"
+          :z-index="getOrAssignZIndex(lane.id, isDraggingLane && draggingLaneId === lane.id)"
+          @click="selectLane(lane)"
+          @dragstart="handleLaneDragStart"
+          @dragmove="handleLaneDragMove"
+          @dragend="handleLaneDragEnd"
+          @delete="handleDeleteLane"
+        />
+
+        <!-- Block Cards (rendered after lanes, behind groups) -->
         <BlockCard
           v-for="block in project.blocks || []"
           :key="block.id"
@@ -330,6 +345,7 @@
       @update-beat="handleUpdateBeat"
       @update-group="handleUpdateGroup"
       @update-block="handleUpdateBlock"
+      @update-lane="handleUpdateLane"
     />
 
     <!-- New Beat Dialog -->
@@ -345,13 +361,14 @@
 import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
-import type { Beat, BeatType, Project, BeatGroup, Block } from '@/domain/entities'
+import type { Beat, BeatType, Project, BeatGroup, Block, Lane } from '@/domain/entities'
 import { projectService } from '@/application/ProjectService'
 import { dragAndDropService } from '@/services/DragAndDropService'
 import { positionCalculationService } from '@/services/PositionCalculationService'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
 import BlockCard from '@/presentation/components/BlockCard.vue'
+import LaneCard from '@/presentation/components/LaneCard.vue'
 // @ts-ignore - Component reserved for future features
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
@@ -376,8 +393,8 @@ const canvasRef = ref<HTMLElement | null>(null)
 
 // Selected entity for properties panel
 interface SelectedEntity {
-  type: 'project' | 'beat' | 'group' | 'block'
-  data: Project | Beat | BeatGroup | Block
+  type: 'project' | 'beat' | 'group' | 'block' | 'lane'
+  data: Project | Beat | BeatGroup | Block | Lane
 }
 const selectedEntity = ref<SelectedEntity | null>({
   type: 'project',
@@ -407,6 +424,11 @@ const groupDragStartPosition = ref({ x: 0, y: 0 })
 const isDraggingBlock = ref(false)
 const draggingBlockId = ref<string | null>(null)
 const blockDragStartPosition = ref({ x: 0, y: 0 })
+
+// Lane drag state
+const isDraggingLane = ref(false)
+const draggingLaneId = ref<string | null>(null)
+const laneDragStartPosition = ref({ x: 0, y: 0 })
 
 // Beat-to-Group hover state (for highlighting groups during beat drag)
 const hoveredGroupId = ref<string | null>(null)
@@ -969,6 +991,126 @@ function detectGroupToGroupHover(groupX: number, groupY: number, draggingGroupId
 }
 
 /**
+ * Detect if a dragging Block collides with another Block
+ */
+function detectBlockToBlockHover(blockX: number, blockY: number, draggingBlockId: string) {
+  const OVERLAP_THRESHOLD = 0.3
+  const BLOCK_HEADER_HEIGHT = 50
+  const GROUP_HEIGHT = 50
+  const BEAT_HEIGHT = 80
+  const BLOCK_PADDING = 15
+  
+  // Get the dragging block to calculate its full dimensions (including content)
+  const draggingBlock = project.value.blocks?.find(b => b.id === draggingBlockId)
+  if (!draggingBlock) return
+  
+  // Calculate full bounds of dragging block
+  const draggingBounds = calculateBlockBounds(draggingBlock, blockX, blockY)
+  
+  const blockLeft = draggingBounds.left
+  const blockRight = draggingBounds.right
+  const blockTop = draggingBounds.top
+  const blockBottom = draggingBounds.bottom
+  const blockArea = draggingBounds.width * draggingBounds.height
+  
+  // Check collision with other blocks (not the one being dragged)
+  for (const block of project.value.blocks || []) {
+    if (block.id === draggingBlockId) continue
+    
+    // Calculate full bounds of target block
+    const targetBounds = calculateBlockBounds(block, block.position.x, block.position.y)
+    
+    const otherLeft = targetBounds.left
+    const otherRight = targetBounds.right
+    const otherTop = targetBounds.top
+    const otherBottom = targetBounds.bottom
+    
+    // Calculate overlap
+    const overlapWidth = Math.min(blockRight, otherRight) - Math.max(blockLeft, otherLeft)
+    const overlapHeight = Math.min(blockBottom, otherBottom) - Math.max(blockTop, otherTop)
+    
+    const hasOverlap = (
+      overlapWidth > 0 && overlapHeight > 0 &&
+      (overlapWidth * overlapHeight) > (blockArea * OVERLAP_THRESHOLD)
+    )
+    
+    if (hasOverlap) {
+      hoveredBlockId.value = block.id
+      return
+    }
+  }
+  
+  // No collision found
+  hoveredBlockId.value = null
+  
+  /**
+   * Calculate full bounds of a block including all its content
+   */
+  function calculateBlockBounds(block: Block, x: number, y: number) {
+    const groups = project.value.beatGroups.filter(g => block.groupIds.includes(g.id))
+    
+    if (groups.length === 0) {
+      // Block without groups - only header
+      return {
+        left: x,
+        right: x + projectService.getBlockWidth(block),
+        top: y,
+        bottom: y + BLOCK_HEADER_HEIGHT,
+        width: projectService.getBlockWidth(block),
+        height: BLOCK_HEADER_HEIGHT
+      }
+    }
+    
+    // Find bounds of all groups and their beats
+    let minX = Infinity
+    let maxX = -Infinity
+    let minY = Infinity
+    let maxY = -Infinity
+    
+    groups.forEach(group => {
+      const groupX = group.position.x
+      const groupY = group.position.y
+      const groupWidth = 424 // GROUP_WIDTH
+      
+      minX = Math.min(minX, groupX)
+      maxX = Math.max(maxX, groupX + groupWidth)
+      minY = Math.min(minY, groupY)
+      maxY = Math.max(maxY, groupY + GROUP_HEIGHT)
+      
+      // Beats of this group
+      const groupBeats = project.value.beats.filter(b => group.beatIds.includes(b.id))
+      groupBeats.forEach(beat => {
+        const beatX = beat.position.x
+        const beatY = beat.position.y
+        const beatWidth = 200 // BEAT_WIDTH
+        
+        minX = Math.min(minX, beatX)
+        maxX = Math.max(maxX, beatX + beatWidth)
+        minY = Math.min(minY, beatY)
+        maxY = Math.max(maxY, beatY + BEAT_HEIGHT)
+      })
+    })
+    
+    // Background must encompass from header to last element
+    const blockHeaderY = y
+    minY = Math.min(minY, blockHeaderY + BLOCK_HEADER_HEIGHT)
+    
+    const width = (maxX - minX) + (BLOCK_PADDING * 2)
+    const height = (maxY - blockHeaderY) + BLOCK_PADDING
+    const offsetX = minX - x - BLOCK_PADDING
+    
+    return {
+      left: x + offsetX,
+      right: x + offsetX + width,
+      top: y,
+      bottom: y + height,
+      width,
+      height
+    }
+  }
+}
+
+/**
  * Check if a dragging BeatGroup collides with any Block
  */
 // @ts-ignore - Parameters temporarily unused during diagnostics
@@ -1016,6 +1158,21 @@ function handleUpdateBlock(updatedBlock: Block) {
   console.log('Block updated:', updatedBlock.name)
 }
 
+// @ts-ignore - Handler for lane updates
+function handleUpdateLane(updatedLane: Lane) {
+  project.value = projectService.updateLane(project.value, updatedLane.id, updatedLane)
+  projectService.saveCurrentProject(project.value)
+  
+  // Update selected entity with the new data
+  if (selectedEntity.value?.type === 'lane' && selectedEntity.value.data.id === updatedLane.id) {
+    selectedEntity.value = {
+      type: 'lane',
+      data: updatedLane
+    }
+  }
+  console.log('Lane updated:', updatedLane.name)
+}
+
 // ============================================================
 // Block Drag Handlers
 // ============================================================
@@ -1053,19 +1210,58 @@ function handleBlockDragMove(blockId: string, deltaX: number, deltaY: number) {
     x: blockDragStartPosition.value.x + deltaXScaled,
     y: blockDragStartPosition.value.y + deltaYScaled
   }
+  
+  // Detect Block-to-Block collision
+  const currentBlock = project.value.blocks?.find(b => b.id === blockId)
+  if (currentBlock) {
+    detectBlockToBlockHover(currentBlock.position.x, currentBlock.position.y, blockId)
+  }
 }
 
 function handleBlockDragEnd(blockId: string) {
   if (!isDraggingBlock.value || draggingBlockId.value !== blockId) return
   
+  const targetBlockId = hoveredBlockId.value
+  
   project.value = dragAndDropService.handleBlockDragEnd(project.value, blockId)
+  
+  // Check if block was dropped on another block
+  if (targetBlockId && targetBlockId !== blockId) {
+    // Check if either block is already in a lane
+    const draggingBlockLane = projectService.getLaneForBlock(project.value, blockId)
+    const targetBlockLane = projectService.getLaneForBlock(project.value, targetBlockId)
+    
+    // Check if dragging block is NOT the first in its lane
+    const isFirstInLane = projectService.isFirstBlockInLane(project.value, blockId)
+    
+    if (draggingBlockLane && !isFirstInLane) {
+      // Dragging a non-first block from a lane - disconnect it
+      project.value = projectService.removeBlockFromLane(project.value, blockId)
+      console.log('Block disconnected from lane:', blockId)
+    } else if (draggingBlockLane && isFirstInLane && targetBlockId) {
+      // Dragging first block of a lane - this is not allowed, ignore drop
+      console.log('Cannot drop first block of lane - entire lane moves together')
+    } else if (targetBlockLane) {
+      // Target is in a lane - add dragging block to that lane
+      project.value = projectService.addBlockToLane(project.value, targetBlockLane.id, blockId, targetBlockId)
+      console.log('Block added to existing lane:', targetBlockLane.name)
+    } else {
+      // Neither block is in a lane - create new lane with both blocks
+      const targetBlock = project.value.blocks.find(b => b.id === targetBlockId)
+      if (targetBlock) {
+        project.value = projectService.createLane(project.value, [targetBlockId, blockId])
+        console.log('New lane created with blocks:', targetBlockId, blockId)
+      }
+    }
+  }
   
   isDraggingBlock.value = false
   draggingBlockId.value = null
+  hoveredBlockId.value = null // Limpiar hover state
   
-  // Save project with updated block position
+  // Save project with updated block position and/or lane structure
   projectService.saveCurrentProject(project.value)
-  console.log('Block position saved')
+  console.log('Block position and lane structure saved')
 }
 
 function selectBlock(block: Block) {
@@ -1150,6 +1346,121 @@ function handleDeleteGroup(groupId: string) {
   }
   
   console.log('Group deleted:', groupId)
+}
+
+// ============================================================
+// Lane Management Functions
+// ============================================================
+
+function getLaneWidth(_lane: Lane): number {
+  // Lane width should be wide enough to contain all its blocks
+  // For now, use a fixed width (can be made dynamic later)
+  return 500
+}
+
+function selectLane(lane: Lane) {
+  selectedEntity.value = {
+    type: 'lane',
+    data: lane
+  }
+  console.log('Lane selected:', lane.name)
+}
+
+function handleLaneDragStart(laneId: string) {
+  isDraggingLane.value = true
+  draggingLaneId.value = laneId
+  
+  const lane = project.value.lanes?.find(l => l.id === laneId)
+  if (lane) {
+    laneDragStartPosition.value = { ...lane.position }
+  }
+  
+  console.log('Lane drag started:', laneId)
+}
+
+function handleLaneDragMove(laneId: string, deltaX: number, deltaY: number) {
+  if (!isDraggingLane.value || draggingLaneId.value !== laneId) return
+  
+  // Calculate deltas accounting for zoom
+  const deltaXScaled = deltaX / zoom.value
+  const deltaYScaled = deltaY / zoom.value
+  
+  const lane = project.value.lanes?.find(l => l.id === laneId)
+  if (!lane) return
+  
+  // Move lane header
+  const newPosition = {
+    x: laneDragStartPosition.value.x + deltaXScaled,
+    y: laneDragStartPosition.value.y + deltaYScaled
+  }
+  
+  // Update lane position
+  project.value = projectService.updateLane(project.value, laneId, { position: newPosition })
+  
+  // Move all blocks in lane
+  const blocksInLane = project.value.blocks.filter(b => lane.blockIds.includes(b.id))
+  
+  blocksInLane.forEach(block => {
+    const blockNewPosition = {
+      x: block.position.x + deltaXScaled,
+      y: block.position.y + deltaYScaled
+    }
+    project.value = projectService.updateBlock(project.value, block.id, { position: blockNewPosition })
+    
+    // Move all groups within this block
+    block.groupIds.forEach(groupId => {
+      const group = project.value.beatGroups.find(g => g.id === groupId)
+      if (group) {
+        const groupNewPosition = {
+          x: group.position.x + deltaXScaled,
+          y: group.position.y + deltaYScaled
+        }
+        project.value = projectService.updateBeatGroup(project.value, group.id, { position: groupNewPosition })
+        
+        // Move all beats within this group
+        group.beatIds.forEach(beatId => {
+          const beat = project.value.beats.find(b => b.id === beatId)
+          if (beat) {
+            const beatNewPosition = {
+              x: beat.position.x + deltaXScaled,
+              y: beat.position.y + deltaYScaled
+            }
+            project.value = projectService.updateBeat(project.value, beat.id, { position: beatNewPosition })
+          }
+        })
+      }
+    })
+  })
+  
+  // Update start position for next delta
+  laneDragStartPosition.value = newPosition
+}
+
+function handleLaneDragEnd(laneId: string) {
+  if (!isDraggingLane.value || draggingLaneId.value !== laneId) return
+  
+  isDraggingLane.value = false
+  draggingLaneId.value = null
+  
+  // Save project with updated lane position
+  projectService.saveCurrentProject(project.value)
+  console.log('Lane position saved')
+}
+
+function handleDeleteLane(laneId: string) {
+  if (confirm(t('messages.confirmDeleteLane'))) {
+    project.value = projectService.deleteLane(project.value, laneId)
+    projectService.saveCurrentProject(project.value)
+    
+    // Clear selection if deleted lane was selected
+    if (selectedEntity.value?.type === 'lane' && selectedEntity.value.data.id === laneId) {
+      selectedEntity.value = {
+        type: 'project',
+        data: project.value
+      }
+    }
+    console.log('Lane deleted:', laneId)
+  }
 }
 
 </script>

@@ -99,6 +99,16 @@ export default {
     updatedAt: 'Última Actualización',
     deleteConfirm: '¿Estás seguro de que deseas eliminar el block "{name}"?'
   },
+  laneProperties: {
+    name: 'Nombre del Lane',
+    blocks: 'Blocks en el Lane',
+    createdAt: 'Fecha de Creación',
+    updatedAt: 'Última Actualización'
+  },
+  messages: {
+    confirmDeleteBlock: '¿Estás seguro de que deseas eliminar este block? Los grupos permanecerán.',
+    confirmDeleteLane: '¿Estás seguro de que deseas eliminar este lane? Los blocks permanecerán.'
+  },
   beatGrid: {
     order: 'Orden',
     title: 'Título',
