@@ -1,6 +1,6 @@
 import { createI18n } from 'vue-i18n'
-import es from './locales/es-ES'
-import en from './locales/en-US'
+import es from './locales/es-ES.json'
+import en from './locales/en-US.json'
 
 // Language key for localStorage
 const LANGUAGE_KEY = 'escaleta-language'
