@@ -293,4 +293,65 @@ describe('ProjectService', () => {
       expect(updated.blocks.length).toBe(0)
     })
   })
+
+  describe('Lane utility methods', () => {
+    it('should get lane for block', () => {
+      const project = service.createExampleProject()
+      
+      // Create groups
+      const group1 = service.createBeatGroup(project, 'Group 1')
+      let updated = service.addBeatGroup(project, { ...group1, position: { x: 100, y: 200 } })
+      const group1Id = updated.beatGroups[0].id
+      
+      const group2 = service.createBeatGroup(updated, 'Group 2')
+      updated = service.addBeatGroup(updated, { ...group2, position: { x: 350, y: 200 } })
+      const group2Id = updated.beatGroups[1].id
+      
+      // Create block
+      updated = service.createBlock(updated, [group1Id, group2Id])
+      const blockId = updated.blocks[0].id
+      
+      // Create lane
+      updated = service.createLane(updated, [blockId])
+      
+      const lane = service.getLaneForBlock(updated, blockId)
+      expect(lane).toBeDefined()
+      expect(lane?.blockIds).toContain(blockId)
+    })
+
+    it('should check if block is first in lane', () => {
+      const project = service.createExampleProject()
+      
+      // Create groups for first block
+      const group1 = service.createBeatGroup(project, 'Group 1')
+      let updated = service.addBeatGroup(project, { ...group1, position: { x: 100, y: 200 } })
+      const group1Id = updated.beatGroups[0].id
+      
+      const group2 = service.createBeatGroup(updated, 'Group 2')
+      updated = service.addBeatGroup(updated, { ...group2, position: { x: 350, y: 200 } })
+      const group2Id = updated.beatGroups[1].id
+      
+      // Create groups for second block
+      const group3 = service.createBeatGroup(updated, 'Group 3')
+      updated = service.addBeatGroup(updated, { ...group3, position: { x: 600, y: 200 } })
+      const group3Id = updated.beatGroups[2].id
+      
+      const group4 = service.createBeatGroup(updated, 'Group 4')
+      updated = service.addBeatGroup(updated, { ...group4, position: { x: 850, y: 200 } })
+      const group4Id = updated.beatGroups[3].id
+      
+      // Create blocks
+      updated = service.createBlock(updated, [group1Id, group2Id])
+      const block1Id = updated.blocks[0].id
+      
+      updated = service.createBlock(updated, [group3Id, group4Id])
+      const block2Id = updated.blocks[1].id
+      
+      // Create lane
+      updated = service.createLane(updated, [block1Id, block2Id])
+      
+      expect(service.isFirstBlockInLane(updated, block1Id)).toBe(true)
+      expect(service.isFirstBlockInLane(updated, block2Id)).toBe(false)
+    })
+  })
 })
