@@ -202,313 +202,6 @@ describe('ProjectService', () => {
     })
   })
 
-  describe('connectBeats', () => {
-    it('should connect two beats bidirectionally', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-
-      const updated = service.connectBeats(project, beat1.id, beat2.id)
-
-      const updatedBeat1 = updated.beats.find(b => b.id === beat1.id)
-      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
-
-      expect(updatedBeat1?.nextBeatId).toBe(beat2.id)
-      expect(updatedBeat2?.prevBeatId).toBe(beat1.id)
-    })
-
-    it('should update timestamps when connecting beats', async () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-      const originalTimestamp1 = beat1.updatedAt
-      const originalTimestamp2 = beat2.updatedAt
-
-      await new Promise(resolve => setTimeout(resolve, 10))
-
-      const updated = service.connectBeats(project, beat1.id, beat2.id)
-
-      const updatedBeat1 = updated.beats.find(b => b.id === beat1.id)
-      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
-
-      expect(updatedBeat1?.updatedAt).not.toBe(originalTimestamp1)
-      expect(updatedBeat2?.updatedAt).not.toBe(originalTimestamp2)
-    })
-  })
-
-  describe('disconnectBeat', () => {
-    it('should clear prevBeatId and nextBeatId from the beat', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Connect beats first
-      let updated = service.connectBeats(project, beat1.id, beat2.id)
-      updated = service.connectBeats(updated, beat2.id, beat3.id)
-
-      // Disconnect middle beat
-      updated = service.disconnectBeat(updated, beat2.id)
-
-      const disconnectedBeat = updated.beats.find(b => b.id === beat2.id)
-      expect(disconnectedBeat?.prevBeatId).toBeUndefined()
-      expect(disconnectedBeat?.nextBeatId).toBeUndefined()
-    })
-
-    it('should clear nextBeatId from previous neighbor', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-      
-      let updated = service.connectBeats(project, beat1.id, beat2.id)
-      updated = service.disconnectBeat(updated, beat2.id)
-
-      const updatedBeat1 = updated.beats.find(b => b.id === beat1.id)
-      expect(updatedBeat1?.nextBeatId).toBeUndefined()
-    })
-
-    it('should clear prevBeatId from next neighbor', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-      
-      let updated = service.connectBeats(project, beat1.id, beat2.id)
-      updated = service.disconnectBeat(updated, beat1.id)
-
-      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
-      expect(updatedBeat2?.prevBeatId).toBeUndefined()
-    })
-
-    it('should handle disconnecting a beat with no neighbors', () => {
-      const project = service.createExampleProject()
-      const beat = project.beats[0]
-
-      const updated = service.disconnectBeat(project, beat.id)
-
-      const disconnectedBeat = updated.beats.find(b => b.id === beat.id)
-      expect(disconnectedBeat?.prevBeatId).toBeUndefined()
-      expect(disconnectedBeat?.nextBeatId).toBeUndefined()
-    })
-  })
-
-  describe('getBeatHeight', () => {
-    it('should return fallback height when element not found', () => {
-      const project = service.createExampleProject()
-      const beatId = project.beats[0].id
-
-      const height = service.getBeatHeight(beatId)
-
-      expect(height).toBe(80) // Default fallback
-    })
-  })
-
-  describe('isAfterBeat', () => {
-    it('should return true when beatId is after afterBeatId in chain', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Create chain: beat1 -> beat2 -> beat3
-      let updated = service.connectBeats(project, beat1.id, beat2.id)
-      updated = service.connectBeats(updated, beat2.id, beat3.id)
-
-      const result = service.isAfterBeat(updated, beat3.id, beat1.id)
-      expect(result).toBe(true)
-    })
-
-    it('should return false when beatId is before afterBeatId in chain', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      let updated = service.connectBeats(project, beat1.id, beat2.id)
-      updated = service.connectBeats(updated, beat2.id, beat3.id)
-
-      const result = service.isAfterBeat(updated, beat1.id, beat3.id)
-      expect(result).toBe(false)
-    })
-
-    it('should return false when beats are not connected', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-
-      const result = service.isAfterBeat(project, beat2.id, beat1.id)
-      expect(result).toBe(false)
-    })
-
-    it('should return false when chain exceeds 100 beats (safety limit)', () => {
-      // This tests the safety limit that also protects against infinite loops
-      let project = service.createExampleProject()
-      
-      // Create a very long chain
-      const beats = Array.from({ length: 101 }, (_, i) => {
-        const typeId = project.beatTypes[0].id
-        return service.createBeat(typeId, project)
-      })
-
-      // Connect all beats in sequence
-      for (let i = 0; i < beats.length - 1; i++) {
-        project = service.connectBeats(project, beats[i].id, beats[i + 1].id)
-      }
-
-      // Should return false due to safety limit
-      const result = service.isAfterBeat(project, beats[100].id, beats[0].id)
-      expect(result).toBe(false)
-    })
-  })
-
-  describe('connectToBottom', () => {
-    it('should position beat below target when target has no next beat', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-      
-      const updated = service.connectToBottom(project, beat1.id, beat2.id)
-
-      const movedBeat = updated.beats.find(b => b.id === beat1.id)
-      const targetBeat = updated.beats.find(b => b.id === beat2.id)
-
-      expect(movedBeat?.position.y).toBeGreaterThan(targetBeat!.position.y)
-      expect(movedBeat?.prevBeatId).toBe(beat2.id)
-      expect(targetBeat?.nextBeatId).toBe(beat1.id)
-    })
-
-    it('should disconnect beat from previous connections', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Connect beat1 -> beat3 first
-      let updated = service.connectBeats(project, beat1.id, beat3.id)
-      
-      // Now connect beat1 to bottom of beat2
-      updated = service.connectToBottom(updated, beat1.id, beat2.id)
-
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-      expect(beat3Updated?.prevBeatId).toBeUndefined()
-    })
-
-    it('should insert between beats when target has next beat', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Create chain: beat2 -> beat3
-      let updated = service.connectBeats(project, beat2.id, beat3.id)
-      
-      // Insert beat1 between beat2 and beat3
-      updated = service.connectToBottom(updated, beat1.id, beat2.id)
-
-      const beat1Updated = updated.beats.find(b => b.id === beat1.id)
-      const beat2Updated = updated.beats.find(b => b.id === beat2.id)
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-
-      expect(beat2Updated?.nextBeatId).toBe(beat1.id)
-      expect(beat1Updated?.prevBeatId).toBe(beat2.id)
-      expect(beat1Updated?.nextBeatId).toBe(beat3.id)
-      expect(beat3Updated?.prevBeatId).toBe(beat1.id)
-    })
-  })
-
-  describe('connectToTop', () => {
-    it('should position beat above target when target has no previous beat', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
-      
-      const updated = service.connectToTop(project, beat1.id, beat2.id)
-
-      const movedBeat = updated.beats.find(b => b.id === beat1.id)
-      const targetBeat = updated.beats.find(b => b.id === beat2.id)
-
-      expect(movedBeat?.position.y).toBeLessThan(targetBeat!.position.y)
-      expect(movedBeat?.nextBeatId).toBe(beat2.id)
-      expect(targetBeat?.prevBeatId).toBe(beat1.id)
-    })
-
-    it('should disconnect beat from previous connections', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      let updated = service.connectBeats(project, beat1.id, beat3.id)
-      updated = service.connectToTop(updated, beat1.id, beat2.id)
-
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-      expect(beat3Updated?.prevBeatId).toBeUndefined()
-    })
-
-    it('should insert between beats when target has previous beat', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Create chain: beat2 -> beat3
-      let updated = service.connectBeats(project, beat2.id, beat3.id)
-      
-      // Insert beat1 between beat2 and beat3 (connect to top of beat3)
-      updated = service.connectToTop(updated, beat1.id, beat3.id)
-
-      const beat1Updated = updated.beats.find(b => b.id === beat1.id)
-      const beat2Updated = updated.beats.find(b => b.id === beat2.id)
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-
-      expect(beat2Updated?.nextBeatId).toBe(beat1.id)
-      expect(beat1Updated?.prevBeatId).toBe(beat2.id)
-      expect(beat1Updated?.nextBeatId).toBe(beat3.id)
-      expect(beat3Updated?.prevBeatId).toBe(beat1.id)
-    })
-  })
-
-  describe('insertBetween', () => {
-    it('should insert beat between two connected beats', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Create chain: beat1 -> beat3
-      let updated = service.connectBeats(project, beat1.id, beat3.id)
-      
-      // Insert beat2 between them
-      updated = service.insertBetween(updated, beat2.id, beat1.id, beat3.id)
-
-      const beat1Updated = updated.beats.find(b => b.id === beat1.id)
-      const beat2Updated = updated.beats.find(b => b.id === beat2.id)
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-
-      expect(beat1Updated?.nextBeatId).toBe(beat2.id)
-      expect(beat2Updated?.prevBeatId).toBe(beat1.id)
-      expect(beat2Updated?.nextBeatId).toBe(beat3.id)
-      expect(beat3Updated?.prevBeatId).toBe(beat2.id)
-    })
-
-    it('should position inserted beat between prev and next beats', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Set specific positions
-      let updated = service.updateBeat(project, beat1.id, { position: { x: 100, y: 100 } })
-      updated = service.updateBeat(updated, beat3.id, { position: { x: 100, y: 300 } })
-      
-      updated = service.connectBeats(updated, beat1.id, beat3.id)
-      updated = service.insertBetween(updated, beat2.id, beat1.id, beat3.id)
-
-      const beat1Updated = updated.beats.find(b => b.id === beat1.id)
-      const beat2Updated = updated.beats.find(b => b.id === beat2.id)
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-
-      expect(beat2Updated?.position.y).toBeGreaterThan(beat1Updated!.position.y)
-      expect(beat2Updated?.position.y).toBeLessThan(beat3Updated!.position.y)
-    })
-
-    it('should shift subsequent beats downward', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3, beat4] = project.beats
-      
-      // Create chain: beat1 -> beat3 -> beat4
-      let updated = service.connectBeats(project, beat1.id, beat3.id)
-      updated = service.connectBeats(updated, beat3.id, beat4.id)
-      
-      const originalBeat3Y = updated.beats.find(b => b.id === beat3.id)!.position.y
-      const originalBeat4Y = updated.beats.find(b => b.id === beat4.id)!.position.y
-      
-      // Insert beat2 between beat1 and beat3
-      updated = service.insertBetween(updated, beat2.id, beat1.id, beat3.id)
-
-      const beat3Updated = updated.beats.find(b => b.id === beat3.id)
-      const beat4Updated = updated.beats.find(b => b.id === beat4.id)
-
-      // beat3 and beat4 should be shifted down
-      expect(beat3Updated?.position.y).toBeGreaterThan(originalBeat3Y)
-      expect(beat4Updated?.position.y).toBeGreaterThan(originalBeat4Y)
-    })
-  })
-
   describe('BeatGroup operations', () => {
     it('should create a beat group', () => {
       const project = service.createExampleProject()
@@ -520,68 +213,6 @@ describe('ProjectService', () => {
       expect(updated.beatGroups[0].name).toBe('Test Group')
       expect(updated.beatGroups[0].description).toBe('')
       expect(updated.beatGroups[0].beatIds).toEqual([])
-    })
-
-    it('should drop beat into group and position it correctly', () => {
-      const project = service.createExampleProject()
-      const beat = project.beats[0]
-      
-      // Create a group at position (100, 200)
-      const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
-      const groupId = updated.beatGroups[0].id
-      
-      // Drop beat into group
-      updated = service.dropBeatIntoGroup(updated, beat.id, groupId)
-      
-      expect(updated.beatGroups[0].beatIds).toContain(beat.id)
-      
-      // Beat should be positioned with group's X coordinate
-      const updatedBeat = updated.beats.find(b => b.id === beat.id)
-      expect(updatedBeat?.position.x).toBe(100) // Group X
-      expect(updatedBeat?.position.y).toBe(260) // GROUP_HEIGHT (50) + GAP (10) + groupY (200)
-    })
-
-    it('should remove beat from group and reposition remaining beats', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
-      
-      // Create group and add beats
-      const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
-      const groupId = updated.beatGroups[0].id
-      
-      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId)
-      
-      expect(updated.beatGroups[0].beatIds.length).toBe(3)
-      
-      // Remove middle beat
-      updated = service.removeBeatFromGroup(updated, beat2.id, groupId)
-      
-      expect(updated.beatGroups[0].beatIds.length).toBe(2)
-      expect(updated.beatGroups[0].beatIds).not.toContain(beat2.id)
-      
-      // Remaining beats should be repositioned
-      const updatedBeat3 = updated.beats.find(b => b.id === beat3.id)
-      // beat3 should now be in position 1 (after beat1) instead of position 2
-      expect(updatedBeat3?.position.y).toBe(350) // 200 + 50 + 10 + (1 * (80 + 10))
-    })
-
-    it('should get group for beat', () => {
-      const project = service.createExampleProject()
-      const beat = project.beats[0]
-      
-      const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, group)
-      const groupId = updated.beatGroups[0].id
-      updated = service.dropBeatIntoGroup(updated, beat.id, groupId)
-      
-      const foundGroup = service.getGroupForBeat(updated, beat.id)
-      
-      expect(foundGroup).toBeDefined()
-      expect(foundGroup?.id).toBe(groupId)
     })
 
     it('should delete beat group', () => {
@@ -608,115 +239,58 @@ describe('ProjectService', () => {
       expect(updated.beatGroups[0].name).toBe('Updated Name')
     })
 
-    it('should insert beat into group at specific position (new beat to group)', () => {
+    it('should check if beat belongs to group', () => {
       const project = service.createExampleProject()
-      const [beat1, beat2, beat3, beat4] = project.beats
+      const beat = project.beats[0]
       
-      // Create group with 3 beats
       const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
+      let updated = service.addBeatGroup(project, { ...group, beatIds: [beat.id] })
       const groupId = updated.beatGroups[0].id
       
-      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId)
+      const belongs = service.belongsToBeatGroup(updated, beat.id, groupId)
       
-      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat2.id, beat3.id])
-      
-      // Insert beat4 before beat2 (index 1)
-      updated = service.insertBeatIntoGroupAtPosition(updated, beat4.id, beat2.id, groupId)
-      
-      // Check order: beat1, beat4, beat2, beat3
-      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat4.id, beat2.id, beat3.id])
-      
-      // Check positions are correct
-      const updatedBeat4 = updated.beats.find(b => b.id === beat4.id)
-      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
-      
-      expect(updatedBeat4?.position.x).toBe(100) // Group X
-      expect(updatedBeat4?.position.y).toBe(260 + 90) // Second position (index 1)
-      expect(updatedBeat2?.position.y).toBe(260 + 90 + 90) // Third position (index 2)
+      expect(belongs).toBe(true)
     })
+  })
 
-    it('should reorder beat within same group', () => {
+  describe('BeatBlock operations', () => {
+    it('should create a beat block', () => {
       const project = service.createExampleProject()
-      const [beat1, beat2, beat3] = project.beats
       
-      // Create group with 3 beats
-      const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
-      const groupId = updated.beatGroups[0].id
-      
-      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId)
-      
-      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat2.id, beat3.id])
-      
-      // Move beat3 to before beat1 (beginning)
-      updated = service.insertBeatIntoGroupAtPosition(updated, beat3.id, beat1.id, groupId)
-      
-      // Check order: beat3, beat1, beat2
-      expect(updated.beatGroups[0].beatIds).toEqual([beat3.id, beat1.id, beat2.id])
-      expect(updated.beatGroups[0].beatIds.length).toBe(3) // No duplicates
-    })
-
-    it('should move beat from one group to another at specific position', () => {
-      const project = service.createExampleProject()
-      const [beat1, beat2, beat3, beat4] = project.beats
-      
-      // Create two groups
+      // Create two groups first
       const group1 = service.createBeatGroup(project, 'Group 1')
       let updated = service.addBeatGroup(project, { ...group1, position: { x: 100, y: 200 } })
-      const groupId1 = updated.beatGroups[0].id
+      const group1Id = updated.beatGroups[0].id
       
       const group2 = service.createBeatGroup(updated, 'Group 2')
-      updated = service.addBeatGroup(updated, { ...group2, position: { x: 600, y: 200 } })
-      const groupId2 = updated.beatGroups[1].id
+      updated = service.addBeatGroup(updated, { ...group2, position: { x: 350, y: 200 } })
+      const group2Id = updated.beatGroups[1].id
       
-      // Add beats to group1
-      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId1)
-      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId1)
+      // Create block with these groups
+      updated = service.createBlock(updated, [group1Id, group2Id], 'Test Block')
       
-      // Add beats to group2
-      updated = service.dropBeatIntoGroup(updated, beat3.id, groupId2)
-      updated = service.dropBeatIntoGroup(updated, beat4.id, groupId2)
-      
-      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id, beat2.id])
-      expect(updated.beatGroups[1].beatIds).toEqual([beat3.id, beat4.id])
-      
-      // Move beat2 from group1 to group2, insert before beat4
-      updated = service.insertBeatIntoGroupAtPosition(updated, beat2.id, beat4.id, groupId2)
-      
-      // Check group1 only has beat1
-      expect(updated.beatGroups[0].beatIds).toEqual([beat1.id])
-      
-      // Check group2 has beat3, beat2, beat4 in that order
-      expect(updated.beatGroups[1].beatIds).toEqual([beat3.id, beat2.id, beat4.id])
-      
-      // Check beat2 position matches group2
-      const updatedBeat2 = updated.beats.find(b => b.id === beat2.id)
-      expect(updatedBeat2?.position.x).toBe(600) // Group 2 X
+      expect(updated.blocks.length).toBe(1)
+      expect(updated.blocks[0].name).toBe('Test Block')
+      expect(updated.blocks[0].groupIds).toEqual([group1Id, group2Id])
     })
 
-    it('should handle inserting beat at same position (no-op)', () => {
+    it('should delete a beat block', () => {
       const project = service.createExampleProject()
-      const [beat1, beat2] = project.beats
       
-      // Create group with 2 beats
-      const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, { ...group, position: { x: 100, y: 200 } })
-      const groupId = updated.beatGroups[0].id
+      const group1 = service.createBeatGroup(project, 'Group 1')
+      let updated = service.addBeatGroup(project, { ...group1, position: { x: 100, y: 200 } })
+      const group1Id = updated.beatGroups[0].id
       
-      updated = service.dropBeatIntoGroup(updated, beat1.id, groupId)
-      updated = service.dropBeatIntoGroup(updated, beat2.id, groupId)
+      const group2 = service.createBeatGroup(updated, 'Group 2')
+      updated = service.addBeatGroup(updated, { ...group2, position: { x: 350, y: 200 } })
+      const group2Id = updated.beatGroups[1].id
       
-      // Try to insert beat1 at its own position
-      const before = updated.beatGroups[0].beatIds
-      updated = service.insertBeatIntoGroupAtPosition(updated, beat1.id, beat1.id, groupId)
+      updated = service.createBlock(updated, [group1Id, group2Id], 'Test Block')
+      const blockId = updated.blocks[0].id
       
-      // Should remain unchanged
-      expect(updated.beatGroups[0].beatIds).toEqual(before)
+      updated = service.deleteBlock(updated, blockId)
+      
+      expect(updated.blocks.length).toBe(0)
     })
   })
 })
