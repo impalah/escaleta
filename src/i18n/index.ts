@@ -13,7 +13,7 @@ function getInitialLocale(): string {
   }
   
   // Get browser language
-  const browserLang = navigator.language || (navigator as any).userLanguage
+  const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage
   
   // Map browser language to our supported locales
   if (browserLang.startsWith('es')) {

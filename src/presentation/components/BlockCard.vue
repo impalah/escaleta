@@ -7,7 +7,7 @@
       left: `${block.position.x}px`,
       top: `${block.position.y}px`,
       width: `${blockWidth}px`,
-      zIndex: zIndex ?? 50  /* MENOR que grupos (100) y beats (200) */
+      zIndex: zIndex ?? 50 /* MENOR que grupos (100) y beats (200) */
     }"
   >
     <!-- Fondo del Block con borde -->

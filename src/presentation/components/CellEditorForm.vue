@@ -19,14 +19,20 @@
             variant="flat"
             size="small"
           >
-            <v-icon start :icon="item.raw.icon" />
+            <v-icon
+              start
+              :icon="item.raw.icon"
+            />
             {{ item.title }}
           </v-chip>
         </template>
         <template #item="{ item, props: itemProps }">
           <v-list-item v-bind="itemProps">
             <template #prepend>
-              <v-icon :icon="item.raw.icon" :color="item.raw.color" />
+              <v-icon
+                :icon="item.raw.icon"
+                :color="item.raw.color"
+              />
             </template>
           </v-list-item>
         </template>
@@ -78,16 +84,16 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update-cell': [beat: Beat, field: string, value: any]
+  'update-cell': [beat: Beat, field: string, value: string | number]
 }>()
 
 // Local value for editing
-const localValue = ref<any>(null)
+const localValue = ref<string | number | null>(null)
 
 // Watch for cell data changes
 watch(() => props.cellData, (newData) => {
   if (newData) {
-    const beat = newData.beat as any
+    const beat = newData.beat as Record<string, string | number>
     localValue.value = beat[newData.field]
   }
 }, { immediate: true })

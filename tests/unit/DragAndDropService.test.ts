@@ -6,34 +6,34 @@ import type { Project } from '@/domain/entities'
 vi.mock('@/application/ProjectService', () => ({
   projectService: {
     updateBeat: vi.fn((project, beatId, updates) => {
-      const beats = project.beats.map((b: any) =>
+      const beats = project.beats.map((b: { id: string; [key: string]: unknown }) =>
         b.id === beatId ? { ...b, ...updates } : b
       )
       return { ...project, beats }
     }),
     updateBeatGroup: vi.fn((project, groupId, updates) => {
-      const beatGroups = project.beatGroups.map((g: any) =>
+      const beatGroups = project.beatGroups.map((g: { id: string; [key: string]: unknown }) =>
         g.id === groupId ? { ...g, ...updates } : g
       )
       return { ...project, beatGroups }
     }),
     getGroupForBeat: vi.fn((project, beatId) => {
-      return project.beatGroups.find((g: any) => g.beatIds.includes(beatId)) || null
+      return project.beatGroups.find((g: { beatIds: string[] }) => g.beatIds.includes(beatId)) || null
     }),
     addBeatsToGroup: vi.fn((project, groupId, beatIds) => {
-      const beatGroups = project.beatGroups.map((g: any) =>
+      const beatGroups = project.beatGroups.map((g: { id: string; beatIds: string[] }) =>
         g.id === groupId ? { ...g, beatIds: [...g.beatIds, ...beatIds] } : g
       )
       return { ...project, beatGroups }
     }),
     removeBeatFromGroup: vi.fn((project, beatId, groupId) => {
-      const beatGroups = project.beatGroups.map((g: any) =>
+      const beatGroups = project.beatGroups.map((g: { id: string; beatIds: string[] }) =>
         g.id === groupId ? { ...g, beatIds: g.beatIds.filter((id: string) => id !== beatId) } : g
       )
       return { ...project, beatGroups }
     }),
     insertBeatBeforeInGroup: vi.fn((project, groupId, beatIdToInsert, targetBeatId) => {
-      const beatGroups = project.beatGroups.map((g: any) => {
+      const beatGroups = project.beatGroups.map((g: { id: string; beatIds: string[] }) => {
         if (g.id !== groupId) return g
         const targetIndex = g.beatIds.indexOf(targetBeatId)
         const newBeatIds = [...g.beatIds.filter((id: string) => id !== beatIdToInsert)]
@@ -42,13 +42,13 @@ vi.mock('@/application/ProjectService', () => ({
       })
       return { ...project, beatGroups }
     }),
-    getBlockForGroup: vi.fn((project, groupId) => {
-      return (project.blocks || []).find((b: any) => b.groupIds.includes(groupId)) || null
+    getBlockForGroup: vi.fn((project, _groupId) => {
+      return (project.blocks || []).find((b: { groupIds: string[] }) => b.groupIds.includes(_groupId)) || null
     }),
-    removeGroupFromBlock: vi.fn((project, blockId, groupId) => {
+    removeGroupFromBlock: vi.fn((project, _blockId, _groupId) => {
       return project // Simplified mock
     }),
-    repositionBeatsInGroup: vi.fn((project, groupId) => {
+    repositionBeatsInGroup: vi.fn((project, _groupId) => {
       return project // Simplified mock
     })
   }

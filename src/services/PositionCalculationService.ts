@@ -12,7 +12,7 @@ export class PositionCalculationService {
   /**
    * Get absolute position of a beat (accounting for group container)
    */
-  getAbsoluteBeatPosition(beat: Beat, project: any): Position {
+  getAbsoluteBeatPosition(beat: Beat, project: { beatGroups: BeatGroup[] }): Position {
     const parentGroup = projectService.getGroupForBeat(project, beat.id)
     
     if (!parentGroup) {

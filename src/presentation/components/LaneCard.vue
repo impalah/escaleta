@@ -7,7 +7,7 @@
       left: `${lane.position.x}px`,
       top: `${lane.position.y}px`,
       width: `${laneWidth}px`,
-      zIndex: zIndex ?? 25  /* MENOR que Blocks (50) */
+      zIndex: zIndex ?? 25 /* MENOR que Blocks (50) */
     }"
   >
     <!-- Lane Header (draggable) -->

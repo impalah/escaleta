@@ -56,7 +56,7 @@ describe('CollisionDetectionService', () => {
     it('should use custom position getter when provided', () => {
       const beats: Beat[] = [createBeat('beat1', 100, 100)]
       const draggedPosition: Position = { x: 550, y: 300 }
-      const getAbsolutePosition = (beat: Beat): Position => ({ x: 500, y: 300 })
+      const getAbsolutePosition = (_beat: Beat): Position => ({ x: 500, y: 300 })
 
       const result = service.findHoveredBeat(
         draggedPosition,
@@ -127,7 +127,7 @@ describe('CollisionDetectionService', () => {
     it('should use custom position getter when provided', () => {
       const groups: BeatGroup[] = [createGroup('group1', 100, 100)]
       const draggedPosition: Position = { x: 550, y: 300 }
-      const getAbsolutePosition = (group: BeatGroup): Position => ({ x: 500, y: 300 })
+      const getAbsolutePosition = (_group: BeatGroup): Position => ({ x: 500, y: 300 })
 
       const result = service.findHoveredGroup(
         draggedPosition,

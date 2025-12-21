@@ -244,7 +244,7 @@ describe('ProjectService', () => {
       const beat = project.beats[0]
       
       const group = service.createBeatGroup(project, 'Test Group')
-      let updated = service.addBeatGroup(project, { ...group, beatIds: [beat.id] })
+      const updated = service.addBeatGroup(project, { ...group, beatIds: [beat.id] })
       const groupId = updated.beatGroups[0].id
       
       const belongs = service.belongsToBeatGroup(updated, beat.id, groupId)

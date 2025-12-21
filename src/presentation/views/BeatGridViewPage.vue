@@ -142,7 +142,7 @@ function handleCellClick(beat: Beat, field: string) {
   }
 }
 
-function handleUpdateCell(beat: Beat, field: string, value: any) {
+function handleUpdateCell(beat: Beat, field: string, value: string | number) {
   // Create updated beat with new field value
   const updatedBeat = {
     ...beat,

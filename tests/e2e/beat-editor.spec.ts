@@ -164,8 +164,6 @@ test.describe('Beat Editor', () => {
 
   test('should display beat cards at correct positions', async ({ page }) => {
     await page.goto('/')
-
-    const firstBeat = page.locator('[data-testid="beat-card"]').first()
     
     // Get the wrapper element (which has absolute positioning)
     const wrapper = page.locator('.beat-card-wrapper').first()

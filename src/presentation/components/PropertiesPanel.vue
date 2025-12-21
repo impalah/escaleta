@@ -15,8 +15,8 @@
     <!-- Side tab (always visible) -->
     <div 
       class="side-tab"
-      @click="toggleCollapse"
       :title="`Collapsed: ${isCollapsed}, Horizontal: ${isHorizontal}, Anchor: ${anchorPosition}`"
+      @click="toggleCollapse"
     >
       <div class="tab-content">
         <v-icon

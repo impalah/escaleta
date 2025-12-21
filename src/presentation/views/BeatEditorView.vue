@@ -195,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
 import type { Beat, BeatType, Project, BeatGroup, Block, Lane } from '@/domain/entities'
@@ -213,7 +213,7 @@ import BeatPropertiesForm from '@/presentation/components/BeatPropertiesForm.vue
 import GroupPropertiesForm from '@/presentation/components/GroupPropertiesForm.vue'
 import BlockPropertiesForm from '@/presentation/components/BlockPropertiesForm.vue'
 import LanePropertiesForm from '@/presentation/components/LanePropertiesForm.vue'
-// @ts-ignore - Dialog reserved for beat creation feature
+// @ts-expect-error - Dialog reserved for beat creation feature
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
 
@@ -282,16 +282,9 @@ const hoveredBlockId = ref<string | null>(null)
 const elementZIndexMap = ref<Map<string, number>>(new Map())
 
 // Constants
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Constant reserved for beat height calculations
-const BEAT_HEIGHT = 80 // Must match constant in ProjectService
+// _BEAT_HEIGHT is reserved for beat height calculations (80px to match ProjectService)
 
-// Computed property to get beats sorted by order
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Computed property for future sorting feature
-const sortedBeats = computed(() => {
-  return projectService.getSortedBeats(project.value)
-})
+// _sortedBeats computed property reserved for future sorting feature
 
 // Watch panOffset and persist changes
 watch(panOffset, (newOffset) => {
@@ -401,10 +394,9 @@ function handleBeatUpdate(updatedBeat: Beat) {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Handler for beat creation
-function handleCreateBeat(typeId: string) {
-  const newBeat = projectService.createBeat(typeId, project.value)
+// @ts-expect-error - Handler for beat creation
+function handleCreateBeat(_typeId: string) {
+  const newBeat = projectService.createBeat(_typeId, project.value)
   project.value = {
     ...project.value,
     beats: [...project.value.beats, newBeat],
@@ -707,11 +699,9 @@ function detectGroupHover(beatX: number, beatY: number) {
   const GROUP_WIDTH = 424 // Same as BEAT_WIDTH
   const GROUP_HEIGHT = 50
   
-  // Use center point of dragged element for more precise collision detection
-  // @ts-ignore - Temporarily unused during diagnostics
-  const beatCenterX = beatX + BEAT_WIDTH / 2
-  // @ts-ignore - Temporarily unused during diagnostics
-  const beatCenterY = beatY + BEAT_HEIGHT / 2
+  // Center points reserved for future precise collision detection
+  // _beatCenterX = beatX + BEAT_WIDTH / 2
+  // _beatCenterY = beatY + BEAT_HEIGHT / 2
   
   // For overlap detection with other beats/groups, use smaller overlap threshold (30% instead of 1px)
   const OVERLAP_THRESHOLD = 0.3
@@ -958,7 +948,7 @@ function detectBlockToBlockHover(blockX: number, blockY: number, draggingBlockId
 /**
  * Check if a dragging BeatGroup collides with any Block
  */
-// @ts-ignore - Parameters temporarily unused during diagnostics
+// @ts-expect-error - Parameters temporarily unused during diagnostics
 
 
 // Group editing handlers
@@ -971,8 +961,7 @@ function selectGroup(group: BeatGroup) {
 }
 
 // Block editing handlers
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Handler for group updates
+// @ts-expect-error - Handler for group updates
 function handleGroupUpdate(updatedGroup: BeatGroup) {
   project.value = projectService.updateBeatGroup(project.value, updatedGroup.id, updatedGroup)
   projectService.saveCurrentProject(project.value)
@@ -987,8 +976,7 @@ function handleGroupUpdate(updatedGroup: BeatGroup) {
   console.log('Group updated:', updatedGroup.name)
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Handler for block updates
+// @ts-expect-error - Handler for block updates
 function handleBlockUpdate(updatedBlock: Block) {
   project.value = projectService.updateBlock(project.value, updatedBlock.id, updatedBlock)
   projectService.saveCurrentProject(project.value)
@@ -1003,7 +991,7 @@ function handleBlockUpdate(updatedBlock: Block) {
   console.log('Block updated:', updatedBlock.name)
 }
 
-// @ts-ignore - Handler for lane updates
+// @ts-expect-error - Handler for lane updates
 function handleLaneUpdate(updatedLane: Lane) {
   project.value = projectService.updateLane(project.value, updatedLane.id, updatedLane)
   projectService.saveCurrentProject(project.value)

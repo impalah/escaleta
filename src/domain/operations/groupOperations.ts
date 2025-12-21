@@ -133,7 +133,7 @@ export function insertBeatBeforeInGroup(
   if (targetIndex === -1) return project
 
   const currentIndex = group.beatIds.indexOf(beatIdToInsert)
-  let newBeatIds = [...group.beatIds]
+  const newBeatIds = [...group.beatIds]
 
   if (currentIndex !== -1) {
     // Beat already in group, reorder
@@ -210,7 +210,7 @@ export function removeBeatFromGroup(
   const now = new Date().toISOString()
 
   // Reposition remaining beats
-  let updatedProject = {
+  const updatedProject = {
     ...project,
     beats: project.beats.map(b => {
       const indexInRemaining = remainingBeatIds.indexOf(b.id)

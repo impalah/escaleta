@@ -128,13 +128,13 @@ vi.mock('@/application/ProjectService', () => ({
       updatedAt: '2024-01-01T00:00:00Z'
     })),
     saveCurrentProject: vi.fn(),
-    updateBeat: vi.fn((project, beatId, updates) => ({
-      ...project,
-      beats: project.beats.map((b: { id: string }) =>
+    updateBeat: vi.fn((_project, beatId, updates) => ({
+      ..._project,
+      beats: _project.beats.map((b: { id: string }) =>
         b.id === beatId ? { ...b, ...updates } : b
       )
     })),
-    createBeat: vi.fn((typeId, project) => ({
+    createBeat: vi.fn((typeId, _project) => ({
       id: 'new-beat',
       title: 'New Beat',
       description: '',

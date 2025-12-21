@@ -80,7 +80,6 @@ describe('beatOperations', () => {
 
     it('should update project timestamp', () => {
       const project = createMockProject()
-      const originalTime = project.updatedAt
       
       // Wait a tiny bit to ensure timestamp changes
       const updated = createBeat(project, 'news')

@@ -61,12 +61,7 @@ test.describe('Mobile Touch Events', () => {
     const canvas = page.locator('.beat-canvas-container')
     await expect(canvas).toBeVisible()
 
-    // Verify canvas has touch event attributes
-    const hasTouchHandlers = await canvas.evaluate((el) => {
-      const attrs = el.getAttributeNames()
-      // Check for Vue's event handlers (they show as ontouchstart, etc. in DOM)
-      return attrs.some(attr => attr.includes('touch'))
-    })
+    // Canvas is expected to have touch event handlers defined in Vue component
 
     // Canvas element should exist (touch handlers are registered via Vue)
     expect(canvas).toBeVisible()
