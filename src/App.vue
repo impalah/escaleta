@@ -1,9 +1,9 @@
 <template>
   <v-app>
-    <BeatEditorView />
+    <router-view />
   </v-app>
 </template>
 
 <script setup lang="ts">
-import BeatEditorView from './presentation/views/BeatEditorView.vue'
+// Router view will render BeatEditorView or BeatGridViewPage based on route
 </script>

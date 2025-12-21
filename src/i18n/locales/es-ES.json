@@ -44,7 +44,9 @@
     "maximize": "Maximizar",
     "restore": "Restaurar",
     "dockLeft": "Anclar a izquierda",
-    "dockRight": "Anclar a derecha"
+    "dockRight": "Anclar a derecha",
+    "dockTop": "Anclar arriba",
+    "dockBottom": "Anclar abajo"
   },
   "projectProperties": {
     "name": "Nombre del Proyecto",
@@ -155,5 +157,9 @@
   "languages": {
     "es-ES": "Español",
     "en-US": "English"
+  },
+  "views": {
+    "gridView": "Vista de Tabla",
+    "switchToCanvas": "Cambiar a Vista Canvas"
   }
 }

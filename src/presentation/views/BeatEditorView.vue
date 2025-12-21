@@ -4,211 +4,22 @@
     class="pa-0 fill-height"
   >
     <!-- App Bar -->
-    <v-app-bar
-      color="primary"
-      density="compact"
-      elevation="2"
-    >
-      <v-toolbar-title>{{ project.name }}</v-toolbar-title>
+    <AppToolbar
+      :project-name="project.name"
+      :show-zoom-controls="true"
+      @new-project="handleNewProject"
+      @save="handleSave"
+      @export-json="handleExportJSON"
+      @export-script="handleExportScript"
+      @zoom-in="handleZoomIn"
+      @zoom-out="handleZoomOut"
+      @change-language="changeLanguage"
+      @add-beat="showNewBeatDialog = true"
+      @create-group="handleCreateGroup"
+    />
 
-      <v-spacer />
-
-      <!-- Toolbar buttons -->
-      <v-btn
-        icon
-        aria-label="New project"
-        @click="handleNewProject"
-      >
-        <v-icon>mdi-file-plus</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.newProject') }}
-        </v-tooltip>
-      </v-btn>
-
-      <v-btn
-        icon
-        aria-label="Save project"
-        @click="handleSave"
-      >
-        <v-icon>mdi-content-save</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.save') }}
-        </v-tooltip>
-      </v-btn>
-
-      <v-menu>
-        <template #activator="{ props }">
-          <v-btn
-            icon
-            v-bind="props"
-          >
-            <v-icon>mdi-export</v-icon>
-            <v-tooltip
-              activator="parent"
-              location="bottom"
-            >
-              {{ t('toolbar.export') }}
-            </v-tooltip>
-          </v-btn>
-        </template>
-        <v-list>
-          <v-list-item @click="handleExportJSON">
-            <v-list-item-title>{{ t('toolbar.exportToJSON') }}</v-list-item-title>
-          </v-list-item>
-          <v-list-item @click="handleExportScript">
-            <v-list-item-title>{{ t('toolbar.exportToScript') }}</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-
-      <v-divider
-        vertical
-        class="mx-2"
-      />
-
-      <!-- View Mode Toggle -->
-      <v-btn-toggle
-        v-model="viewMode"
-        mandatory
-        density="compact"
-        color="accent"
-        class="mr-2"
-      >
-        <v-btn
-          value="canvas"
-          size="small"
-          aria-label="Canvas view"
-        >
-          <v-icon>mdi-grid</v-icon>
-          <v-tooltip
-            activator="parent"
-            location="bottom"
-          >
-            {{ t('toolbar.canvasView') }}
-          </v-tooltip>
-        </v-btn>
-        <v-btn
-          value="grid"
-          size="small"
-          aria-label="Grid view"
-        >
-          <v-icon>mdi-view-list</v-icon>
-          <v-tooltip
-            activator="parent"
-            location="bottom"
-          >
-            {{ t('toolbar.gridView') }}
-          </v-tooltip>
-        </v-btn>
-      </v-btn-toggle>
-
-      <v-divider
-        vertical
-        class="mx-2"
-      />
-
-      <v-btn
-        icon
-        @click="handleZoomIn"
-      >
-        <v-icon>mdi-magnify-plus</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.zoomIn') }}
-        </v-tooltip>
-      </v-btn>
-
-      <v-btn
-        icon
-        @click="handleZoomOut"
-      >
-        <v-icon>mdi-magnify-minus</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.zoomOut') }}
-        </v-tooltip>
-      </v-btn>
-
-      <v-divider
-        vertical
-        class="mx-2"
-      />
-
-      <!-- Language Selector -->
-      <v-menu>
-        <template #activator="{ props }">
-          <v-btn
-            icon
-            v-bind="props"
-          >
-            <v-icon>mdi-translate</v-icon>
-            <v-tooltip
-              activator="parent"
-              location="bottom"
-            >
-              {{ t('toolbar.language') }}
-            </v-tooltip>
-          </v-btn>
-        </template>
-        <v-list>
-          <v-list-item @click="changeLanguage('es-ES')">
-            <v-list-item-title>{{ t('languages.es-ES') }}</v-list-item-title>
-          </v-list-item>
-          <v-list-item @click="changeLanguage('en-US')">
-            <v-list-item-title>{{ t('languages.en-US') }}</v-list-item-title>
-          </v-list-item>
-        </v-list>
-      </v-menu>
-
-      <v-divider
-        vertical
-        class="mx-2"
-      />
-
-      <v-btn
-        icon
-        color="accent"
-        aria-label="Add beat"
-        @click="showNewBeatDialog = true"
-      >
-        <v-icon>mdi-plus-circle</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.addBeat') }}
-        </v-tooltip>
-      </v-btn>
-
-      <v-btn
-        icon
-        color="secondary"
-        aria-label="Create group"
-        @click="handleCreateGroup"
-      >
-        <v-icon>mdi-group</v-icon>
-        <v-tooltip
-          activator="parent"
-          location="bottom"
-        >
-          {{ t('toolbar.createGroup') }}
-        </v-tooltip>
-      </v-btn>
-    </v-app-bar>
-
-    <!-- Beat Canvas (shown in canvas mode) -->
+    <!-- Beat Canvas -->
     <v-sheet 
-      v-if="viewMode === 'canvas'" 
       class="beat-canvas-container"
       :style="{ cursor: isPanning ? 'grabbing' : 'grab' }"
       @mousedown="handleCanvasMouseDown"
@@ -325,28 +136,54 @@
       </div>
     </v-sheet>
 
-    <!-- Beat Grid (shown in grid mode) -->
-    <v-sheet
-      v-else
-      class="beat-grid-container"
-    >
-      <BeatGridView
-        :beats="sortedBeats"
-        :beat-types="project.beatTypes"
-        @beat-click="selectBeat"
-      />
-    </v-sheet>
-
     <!-- Properties Panel -->
     <PropertiesPanel
-      :selected-entity="selectedEntity"
-      :beat-types="project.beatTypes"
-      @update-project="handleUpdateProject"
-      @update-beat="handleUpdateBeat"
-      @update-group="handleUpdateGroup"
-      @update-block="handleUpdateBlock"
-      @update-lane="handleUpdateLane"
-    />
+      :title="getPanelTitle()"
+      orientation="vertical"
+    >
+      <template #content>
+        <ProjectPropertiesForm 
+          v-if="selectedEntity?.type === 'project'"
+          :project="selectedEntity.data as Project"
+          @update="handleProjectUpdate"
+        />
+        <BeatPropertiesForm 
+          v-else-if="selectedEntity?.type === 'beat'"
+          :beat="selectedEntity.data as Beat"
+          :beat-types="project.beatTypes"
+          @update="handleBeatUpdate"
+        />
+        <GroupPropertiesForm
+          v-else-if="selectedEntity?.type === 'group'"
+          :group="selectedEntity.data as BeatGroup"
+          @update="handleGroupUpdate"
+        />
+        <BlockPropertiesForm
+          v-else-if="selectedEntity?.type === 'block'"
+          :block="selectedEntity.data as Block"
+          @update="handleBlockUpdate"
+        />
+        <LanePropertiesForm
+          v-else-if="selectedEntity?.type === 'lane'"
+          :lane="selectedEntity.data as Lane"
+          @update="handleLaneUpdate"
+        />
+        <div
+          v-else
+          class="empty-state"
+        >
+          <v-icon
+            size="64"
+            color="grey-lighten-1"
+          >
+            mdi-information-outline
+          </v-icon>
+          <p class="text-grey">
+            Selecciona un elemento para editar sus propiedades
+          </p>
+        </div>
+      </template>
+    </PropertiesPanel>
 
     <!-- New Beat Dialog -->
     <BeatTypeSelectDialog
@@ -365,19 +202,20 @@ import type { Beat, BeatType, Project, BeatGroup, Block, Lane } from '@/domain/e
 import { projectService } from '@/application/ProjectService'
 import { dragAndDropService } from '@/services/DragAndDropService'
 import { positionCalculationService } from '@/services/PositionCalculationService'
+import AppToolbar from '@/presentation/components/AppToolbar.vue'
 import BeatCard from '@/presentation/components/BeatCard.vue'
 import BeatGroupCard from '@/presentation/components/BeatGroupCard.vue'
 import BlockCard from '@/presentation/components/BlockCard.vue'
 import LaneCard from '@/presentation/components/LaneCard.vue'
-// @ts-ignore - Component reserved for future features
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
+import ProjectPropertiesForm from '@/presentation/components/ProjectPropertiesForm.vue'
+import BeatPropertiesForm from '@/presentation/components/BeatPropertiesForm.vue'
+import GroupPropertiesForm from '@/presentation/components/GroupPropertiesForm.vue'
+import BlockPropertiesForm from '@/presentation/components/BlockPropertiesForm.vue'
+import LanePropertiesForm from '@/presentation/components/LanePropertiesForm.vue'
 // @ts-ignore - Dialog reserved for beat creation feature
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
-// @ts-ignore - Grid view reserved for future features
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import BeatGridView from '@/presentation/components/BeatGridView.vue'
 
 const { t } = useI18n()
 
@@ -448,22 +286,11 @@ const elementZIndexMap = ref<Map<string, number>>(new Map())
 // @ts-ignore - Constant reserved for beat height calculations
 const BEAT_HEIGHT = 80 // Must match constant in ProjectService
 
-// View mode: 'canvas' or 'grid', persisted in localStorage
-const VIEW_MODE_KEY = 'escaleta-view-mode'
-const viewMode = ref<'canvas' | 'grid'>(
-  (localStorage.getItem(VIEW_MODE_KEY) as 'canvas' | 'grid') || 'canvas'
-)
-
 // Computed property to get beats sorted by order
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 // @ts-ignore - Computed property for future sorting feature
 const sortedBeats = computed(() => {
   return projectService.getSortedBeats(project.value)
-})
-
-// Watch viewMode and persist changes
-watch(viewMode, (newMode) => {
-  localStorage.setItem(VIEW_MODE_KEY, newMode)
 })
 
 // Watch panOffset and persist changes
@@ -534,20 +361,38 @@ function selectProject() {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Handler for project updates
-function handleUpdateProject(updatedProject: Project) {
+function getPanelTitle(): string {
+  if (!selectedEntity.value) return t('propertiesPanel.project').toUpperCase()
+  
+  if (selectedEntity.value.type === 'project') {
+    const projectData = selectedEntity.value.data as Project
+    return `${t('propertiesPanel.project').toUpperCase()} - ${projectData.name}`
+  } else if (selectedEntity.value.type === 'beat') {
+    const beatData = selectedEntity.value.data as Beat
+    return `BEAT - ${beatData.title}`
+  } else if (selectedEntity.value.type === 'group') {
+    const groupData = selectedEntity.value.data as BeatGroup
+    return `${t('propertiesPanel.group').toUpperCase()} - ${groupData.name}`
+  } else if (selectedEntity.value.type === 'block') {
+    const blockData = selectedEntity.value.data as Block
+    return `BLOCK - ${blockData.name}`
+  } else if (selectedEntity.value.type === 'lane') {
+    const laneData = selectedEntity.value.data as Lane
+    return `LANE - ${laneData.name}`
+  }
+  
+  return t('propertiesPanel.project').toUpperCase()
+}
+
+function handleProjectUpdate(updatedProject: Project) {
   project.value = updatedProject
   projectService.saveCurrentProject(project.value)
-  // Update selected entity to reflect changes
   if (selectedEntity.value?.type === 'project') {
     selectedEntity.value.data = updatedProject
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-// @ts-ignore - Handler for beat updates
-function handleUpdateBeat(updatedBeat: Beat) {
+function handleBeatUpdate(updatedBeat: Beat) {
   project.value = projectService.updateBeat(project.value, updatedBeat.id, updatedBeat)
   projectService.saveCurrentProject(project.value)
   // Update selected entity to reflect changes
@@ -1128,7 +973,7 @@ function selectGroup(group: BeatGroup) {
 // Block editing handlers
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 // @ts-ignore - Handler for group updates
-function handleUpdateGroup(updatedGroup: BeatGroup) {
+function handleGroupUpdate(updatedGroup: BeatGroup) {
   project.value = projectService.updateBeatGroup(project.value, updatedGroup.id, updatedGroup)
   projectService.saveCurrentProject(project.value)
   
@@ -1144,7 +989,7 @@ function handleUpdateGroup(updatedGroup: BeatGroup) {
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 // @ts-ignore - Handler for block updates
-function handleUpdateBlock(updatedBlock: Block) {
+function handleBlockUpdate(updatedBlock: Block) {
   project.value = projectService.updateBlock(project.value, updatedBlock.id, updatedBlock)
   projectService.saveCurrentProject(project.value)
   
@@ -1159,7 +1004,7 @@ function handleUpdateBlock(updatedBlock: Block) {
 }
 
 // @ts-ignore - Handler for lane updates
-function handleUpdateLane(updatedLane: Lane) {
+function handleLaneUpdate(updatedLane: Lane) {
   project.value = projectService.updateLane(project.value, updatedLane.id, updatedLane)
   projectService.saveCurrentProject(project.value)
   

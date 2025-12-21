@@ -44,7 +44,9 @@
     "maximize": "Maximize",
     "restore": "Restore",
     "dockLeft": "Dock Left",
-    "dockRight": "Dock Right"
+    "dockRight": "Dock Right",
+    "dockTop": "Dock Top",
+    "dockBottom": "Dock Bottom"
   },
   "projectProperties": {
     "name": "Project Name",
@@ -155,5 +157,9 @@
   "languages": {
     "es-ES": "Español",
     "en-US": "English"
+  },
+  "views": {
+    "gridView": "Grid View",
+    "switchToCanvas": "Switch to Canvas View"
   }
 }

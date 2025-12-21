@@ -2,68 +2,69 @@
   <v-data-table
     :headers="headers"
     :items="sortedBeats"
-    :items-per-page="25"
+    :items-per-page="-1"
     class="elevation-1"
     density="comfortable"
-    @click:row="handleRowClick"
   >
     <!-- Beat type with icon and color -->
     <template #item.typeId="{ item }">
-      <v-chip
-        :color="getBeatType(item.typeId)?.color"
-        variant="flat"
-        size="small"
-        class="font-weight-medium"
-      >
-        <v-icon
-          start
-          :icon="getBeatType(item.typeId)?.icon"
-        />
-        {{ t(`beatTypes.${item.typeId}`) }}
-      </v-chip>
+      <div @click.stop="handleCellClick(item, 'typeId')" class="clickable-cell">
+        <v-chip
+          :color="getBeatType(item.typeId)?.color"
+          variant="flat"
+          size="small"
+          class="font-weight-medium"
+        >
+          <v-icon
+            start
+            :icon="getBeatType(item.typeId)?.icon"
+          />
+          {{ t(`beatTypes.${item.typeId}`) }}
+        </v-chip>
+      </div>
     </template>
 
     <!-- Order column with badge -->
     <template #item.order="{ item }">
-      <v-badge
-        :content="item.order"
-        color="primary"
-        inline
-      />
+      <div @click.stop="handleCellClick(item, 'order')" class="clickable-cell">
+        <v-badge
+          :content="item.order"
+          color="primary"
+          inline
+        />
+      </div>
     </template>
 
     <!-- Title column (truncate long titles) -->
     <template #item.title="{ item }">
       <div
-        class="text-truncate"
+        @click.stop="handleCellClick(item, 'title')"
+        class="text-truncate clickable-cell"
         style="max-width: 250px"
       >
         {{ item.title }}
       </div>
     </template>
 
-    <!-- Description column (truncate long descriptions) -->
-    <template #item.description="{ item }">
-      <div
-        class="text-truncate"
-        style="max-width: 300px"
-      >
-        {{ item.description || '—' }}
+    <!-- Duration column -->
+    <template #item.eventDuration="{ item }">
+      <div @click.stop="handleCellClick(item, 'eventDuration')" class="clickable-cell">
+        {{ item.eventDuration || '—' }}
       </div>
     </template>
 
-    <!-- Created date formatted -->
-    <template #item.createdAt="{ item }">
-      <span class="text-caption text-medium-emphasis">
-        {{ formatDate(item.createdAt) }}
-      </span>
+    <!-- Start Time column -->
+    <template #item.eventStartTime="{ item }">
+      <div @click.stop="handleCellClick(item, 'eventStartTime')" class="clickable-cell">
+        {{ item.eventStartTime || '—' }}
+      </div>
     </template>
 
-    <!-- Updated date formatted -->
-    <template #item.updatedAt="{ item }">
-      <span class="text-caption text-medium-emphasis">
-        {{ formatDate(item.updatedAt) }}
-      </span>
+    <!-- Scene column -->
+    <template #item.scene="{ item }">
+      <div @click.stop="handleCellClick(item, 'scene')" class="clickable-cell">
+        {{ item.scene || '—' }}
+      </div>
     </template>
   </v-data-table>
 </template>
@@ -81,7 +82,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'beat-click': [beat: Beat]
+  'cell-click': [beat: Beat, field: string]
 }>()
 
 const headers = computed(() => [
@@ -101,27 +102,25 @@ function getBeatType(typeId: string): BeatType | undefined {
   return props.beatTypes.find(t => t.id === typeId)
 }
 
-function formatDate(isoString: string): string {
-  const date = new Date(isoString)
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  })
-}
-
-function handleRowClick(_event: Event, row: { item: Beat }) {
-  emit('beat-click', row.item)
+function handleCellClick(beat: Beat, field: string) {
+  emit('cell-click', beat, field)
 }
 </script>
 
 <style scoped>
-/* Make rows clickable with hover effect */
-:deep(tbody tr) {
+/* Make cells clickable with hover effect */
+.clickable-cell {
   cursor: pointer;
+  padding: 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s;
 }
 
-:deep(tbody tr:hover) {
-  background-color: rgba(0, 0, 0, 0.04);
+.clickable-cell:hover {
+  background-color: rgba(var(--v-theme-primary), 0.1);
+}
+
+:deep(tbody tr) {
+  cursor: default;
 }
 </style>

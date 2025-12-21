@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
+import { createRouter, createMemoryHistory } from 'vue-router'
 import BeatEditorView from '@/presentation/views/BeatEditorView.vue'
 import esES from '@/i18n/locales/es-ES'
 import enUS from '@/i18n/locales/en-US'
@@ -14,6 +15,26 @@ const i18n = createI18n({
     'en-US': enUS
   }
 })
+
+// Create router instance for tests
+const router = createRouter({
+  history: createMemoryHistory(),
+  routes: [
+    { path: '/', name: 'canvas', component: { template: '<div></div>' } },
+    { path: '/canvas', name: 'canvas', component: { template: '<div></div>' } },
+    { path: '/grid', name: 'grid', component: { template: '<div></div>' } }
+  ]
+})
+
+// Mock AppToolbar component
+vi.mock('@/presentation/components/AppToolbar.vue', () => ({
+  default: {
+    name: 'AppToolbar',
+    template: '<div class="app-toolbar"></div>',
+    props: ['projectName', 'showZoomControls'],
+    emits: ['new-project', 'save', 'export-json', 'export-script', 'zoom-in', 'zoom-out', 'change-language', 'add-beat', 'create-group']
+  }
+}))
 
 // Mock all child components
 vi.mock('@/presentation/components/BeatCard.vue', () => ({
@@ -146,10 +167,13 @@ vi.mock('@/application/ProjectService', () => ({
 }))
 
 describe('BeatEditorView', () => {
-  it('should load and display project data', () => {
+  it('should load and display project data', async () => {
+    await router.push('/canvas')
+    await router.isReady()
+    
     const wrapper = mount(BeatEditorView, {
       global: {
-        plugins: [i18n]
+        plugins: [i18n, router]
       }
     })
     // Check that beats are rendered
@@ -157,20 +181,26 @@ describe('BeatEditorView', () => {
     expect(wrapper.text()).toContain('Beat 2')
   })
 
-  it('should render beat cards with titles', () => {
+  it('should render beat cards with titles', async () => {
+    await router.push('/canvas')
+    await router.isReady()
+    
     const wrapper = mount(BeatEditorView, {
       global: {
-        plugins: [i18n]
+        plugins: [i18n, router]
       }
     })
     expect(wrapper.text()).toContain('Beat 1')
     expect(wrapper.text()).toContain('Beat 2')
   })
 
-  it('should have canvas container', () => {
+  it('should have canvas container', async () => {
+    await router.push('/canvas')
+    await router.isReady()
+    
     const wrapper = mount(BeatEditorView, {
       global: {
-        plugins: [i18n]
+        plugins: [i18n, router]
       }
     })
     expect(wrapper.find('.beat-canvas').exists()).toBe(true)
