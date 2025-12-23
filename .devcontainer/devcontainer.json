@@ -56,5 +56,9 @@
 
   "postStartCommand": "npm run dev",
 
-  "remoteUser": "node"
+  "remoteUser": "node",
+
+  "mounts": [
+    "source=${localEnv:HOME}${localEnv:USERPROFILE}/.ssh,target=/home/node/.ssh,type=bind,consistency=cached"
+  ]
 }
