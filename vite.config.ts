@@ -4,17 +4,15 @@ import vuetify from 'vite-plugin-vuetify'
 import { fileURLToPath, URL } from 'node:url'
 
 export default defineConfig({
-  plugins: [
-    vue(),
-    vuetify({ autoImport: true })
-  ],
+  plugins: [vue(), vuetify({ autoImport: true })],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
     }
   },
   server: {
-    port: 3000
+    port: 3000,
+    host: '0.0.0.0'
   },
   build: {
     chunkSizeWarningLimit: 1000 // Increase limit to 1000 kB (Vuetify bundles are large)

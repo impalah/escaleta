@@ -1,22 +1,36 @@
 # Copilot Instructions for Escaleta
 
-A Vue 3 + TypeScript beat editor for broadcast production using Clean Architecture.
+A Vue 3 + TypeScript beat editor for broadcast production using Clean Architecture with **modular, functional design**.
 
 ## Architecture Overview
 
-**4-Layer Clean Architecture** (dependency rule: outer → inner only):
+**Hybrid Architecture** (Functional Core + Service Shell):
 
 ```
-presentation/ (Vue components + i18n) 
+presentation/ (Vue components + i18n + composables + router)
     ↓
-application/ (ProjectService - business logic)
+services/ (DragAndDropService, CollisionDetectionService, PositionCalculationService)
     ↓
-domain/ (entities.ts - Beat, BeatType, Project types)
-    ↑
+application/ (ProjectService facade + specialized services/)
+    ↓  ├─ BeatManagementService
+    ↓  ├─ BlockManagementService
+    ↓  └─ LaneManagementService
+    ↓
+domain/ (entities.ts + operations/ - pure functions)
+    ↑  ├─ beatOperations.ts
+    ↑  ├─ groupOperations.ts
+    ↑  ├─ blockOperations.ts
+    ↑  ├─ laneOperations.ts
+    ↑  └─ geometry.ts
 infrastructure/ (LocalStorageService - persistence)
 ```
 
-**Critical Pattern**: Services use dependency injection via constructor. See `ProjectService` which injects `storageService` from infrastructure layer.
+**Critical Patterns**: 
+- **Functional Core**: All `domain/operations/` are pure functions (no side effects, immutable)
+- **Service Shell**: `application/services/` orchestrate operations and handle cross-entity logic
+- **Facade Pattern**: `ProjectService` maintains backward compatibility, delegates to specialized services
+- **Dependency Injection**: Services injected via constructor (e.g., `ProjectService` injects `storageService`)
+- **Composables**: Vue 3 composables in `composables/` for reusable UI logic (`useDraggable`, `useHoverable`)
 
 **Internationalization**: Vue I18n with `vue-i18n` package. Helper functions in `i18n/helpers.ts` for translations outside component context (`t()`, `getBeatTypeName()`, `getNewBeatTitle()`). Supports Spanish (es-ES) and English (en-US).
 
@@ -35,24 +49,40 @@ npm run format           # Prettier formatting
 ```bash
 npm test                 # Unit tests (Vitest)
 npm run test:watch       # Tests in watch mode
-npm run test:coverage    # Must meet 80% threshold (98.85% actual)
+npm run test:coverage    # Must meet 80% threshold
 npm run test:e2e         # Playwright E2E tests
 npm run test:e2e:ui      # Playwright UI mode
 npm run test:e2e:debug   # Debug E2E tests
 ```
 
+**Routing**:
+- Default route `/` redirects to `/canvas`
+- `/canvas` - Canvas view with drag & drop (BeatEditorView.vue)
+- `/grid` - Grid/table view (BeatGridViewPage.vue)
+- Router configured in `src/router/index.ts` with document title updates
+
 ## Testing Strategy (CRITICAL)
 
 **Unit tests** (Vitest + jsdom):
-- Test `application/`, `infrastructure/`, `utils/` layers
-- **Presentation layer EXCLUDED from coverage** (`vite.config.ts` line 45)
+- Test `application/`, `infrastructure/`, `utils/`, `domain/operations/` layers
+- **Presentation layer EXCLUDED from coverage** (`vite.config.ts`)
 - Why: Vue components better tested with E2E, not unit tests
-- Coverage target: 80% for business logic (domain/application/infrastructure)
+- Coverage target: 80% for business logic
+
+**Test files** (updated):
+- `beatOperations.test.ts`, `groupOperations.test.ts`, `blockOperations.test.ts`, `laneOperations.test.ts` - Pure function tests
+- `geometry.test.ts` - Layout calculation tests
+- `services.test.ts` - BeatManagementService, BlockManagementService, LaneManagementService tests
+- `ProjectService.test.ts` - Facade integration tests
+- `CollisionDetectionService.test.ts`, `DragAndDropService.test.ts`, `PositionCalculationService.test.ts` - Service tests
+- `useHoverable.test.ts` - Composable tests
+- `i18n.test.ts` - Internationalization tests
+- `LocalStorageService.test.ts`, `uuid.test.ts` - Infrastructure tests
 
 **E2E tests** (Playwright):
 - Test user flows, NOT code coverage
 - Auto-starts dev server (`webServer` in `playwright.config.ts`)
-- Use `data-testid="beat-card"` and `aria-label` attributes for selectors
+- Use `data-testid` and `aria-label` attributes for selectors
 - Tests run on port 3000 (baseURL config)
 
 **Test Setup** (`tests/setup.ts`):
@@ -64,25 +94,36 @@ npm run test:e2e:debug   # Debug E2E tests
 
 **Data Flow**:
 1. `BeatEditorView.vue` loads project via `ProjectService.loadCurrentProject()`
-2. User edits beat → `handleSaveBeat()` → `ProjectService.updateBeat()` → auto-saves to localStorage
+2. User edits beat/group/block/lane → `ProjectService` methods → auto-saves to localStorage
 3. All state lives in reactive `project` ref, no Pinia/Vuex
-4. **Properties Panel** (`PropertiesPanel.vue`) shows project or beat properties with real-time auto-save
-5. **Beat connections** via drag & drop with magnet zones (visual feedback when hovering)
+4. **Properties Panel** (`PropertiesPanel.vue`) shows project, beat, group, block, or lane properties with real-time auto-save
+5. **Drag & Drop** handled by `DragAndDropService` with collision detection
 
-**Beat Creation Flow** (non-obvious):
+**New Entity Hierarchy**:
+- **Beats**: Individual production segments (unchanged)
+- **BeatGroups**: Collections of related beats that move together
+- **Blocks**: Horizontal containers for multiple BeatGroups
+- **Lanes**: Vertical containers for multiple Blocks (full production timeline)
+
+**Beat Creation Flow**:
 1. Click "Add beat" → opens `BeatTypeSelectDialog`
 2. Select type → creates beat with `ProjectService.createBeat(typeId)`
 3. Beat auto-saved to localStorage immediately
-4. To edit, click beat card → opens properties panel (right side by default)
-5. Properties panel auto-hides when not pinned, can dock left/right, resizable
+4. To edit, click beat card → opens properties panel
+5. Properties panel auto-hides when not pinned, can dock left/right/top/bottom, resizable
 
-**Beat Connection System** (drag & drop with magnets):
-1. Drag a beat card over another beat → magnet zones appear (top/bottom)
-2. Drop on **top zone** → `connectToTop()` → beat becomes predecessor
-3. Drop on **bottom zone** → `connectToBottom()` → beat becomes successor
-4. **Shift + Drag** → disconnect beat from chain (`isDragToDisconnect` flag)
-5. **Group movement** → dragging a connected beat moves entire chain (unless Shift pressed)
-6. Magnet constants: `MAGNET_ZONE_HEIGHT = 30px`, `MAGNET_OVERLAP_THRESHOLD = 0.5` (50% overlap)
+**Group/Block/Lane Creation**:
+1. **Create Group**: Click "Create Group" button → creates empty BeatGroup
+2. **Add to Group**: Drag beat onto group card to add it
+3. **Create Block**: Click "Create Block" button → requires ≥2 groups to link
+4. **Create Lane**: Select blocks → creates vertical lane container
+
+**Drag & Drop System** (enhanced with composables):
+1. **useDraggable** composable handles mouse/touch events with threshold detection
+2. **DragAndDropService** manages global drag state and collision detection
+3. **CollisionDetectionService** detects overlaps between elements
+4. **PositionCalculationService** computes grid layouts and automatic positioning
+5. Visual feedback: hover states, magnet zones, collision highlighting
 
 **Vuetify v3 Specifics**:
 - Auto-import enabled (`vite-plugin-vuetify`)
@@ -125,11 +166,20 @@ All production fields are **optional** and visible in the Properties Panel when 
 
 ## Key Files Reference
 
-- `src/domain/entities.ts` - Core types (Beat, BeatType, Project, MagnetZone) - START HERE
-- `src/application/ProjectService.ts` - Business logic with beat connection methods
-- `src/presentation/views/BeatEditorView.vue` - Main UI with drag & drop logic
-- `src/presentation/components/BeatCard.vue` - Individual beat card with drag handlers
+- `src/domain/entities.ts` - Core types (Beat, BeatType, Project, BeatGroup, Block, Lane) - START HERE
+- `src/domain/operations/` - Pure functions for entity operations (beatOperations, groupOperations, blockOperations, laneOperations, geometry)
+- `src/application/ProjectService.ts` - Facade pattern, delegates to specialized services
+- `src/application/services/` - Orchestration layer (BeatManagementService, BlockManagementService, LaneManagementService)
+- `src/services/` - Presentation services (DragAndDropService, CollisionDetectionService, PositionCalculationService)
+- `src/composables/` - Reusable Vue composition functions (useDraggable, useHoverable)
+- `src/presentation/views/BeatEditorView.vue` - Canvas view with drag & drop
+- `src/presentation/views/BeatGridViewPage.vue` - Grid/table view
+- `src/presentation/components/BeatCard.vue` - Individual beat card
+- `src/presentation/components/BeatGroupCard.vue` - Group container card
+- `src/presentation/components/BlockCard.vue` - Block container card
+- `src/presentation/components/LaneCard.vue` - Lane container card
 - `src/presentation/components/PropertiesPanel.vue` - Dockable properties panel (AutoCAD-style)
+- `src/router/index.ts` - Vue Router configuration
 - `src/i18n/helpers.ts` - Translation helpers for use outside components
 - `src/i18n/locales/en-US.ts` - English translations (primary)
 - `src/i18n/locales/es-ES.ts` - Spanish translations
@@ -158,28 +208,60 @@ escaleta/
   │  ├─ App.vue
   │  ├─ env.d.ts
   │  ├─ domain/
-  │  │  └─ entities.ts              # Beat, BeatType, Project, MagnetZone
+  │  │  ├─ entities.ts              # Beat, BeatType, Project, BeatGroup, Block, Lane
+  │  │  └─ operations/              # Pure functions (functional core)
+  │  │     ├─ beatOperations.ts     # Beat CRUD operations
+  │  │     ├─ groupOperations.ts    # BeatGroup operations + positioning
+  │  │     ├─ blockOperations.ts    # Block operations + horizontal layout
+  │  │     ├─ laneOperations.ts     # Lane operations + vertical stacking
+  │  │     ├─ geometry.ts           # Layout calculations & constants
+  │  │     └─ index.ts              # Barrel export
   │  ├─ application/
-  │  │  └─ ProjectService.ts        # Business logic with connection methods
+  │  │  ├─ ProjectService.ts        # Facade pattern (delegates to services)
+  │  │  └─ services/                # Orchestration layer
+  │  │     ├─ BeatManagementService.ts   # Beat + BeatGroup coordination
+  │  │     ├─ BlockManagementService.ts  # Block orchestration
+  │  │     ├─ LaneManagementService.ts   # Lane orchestration
+  │  │     └─ index.ts              # Barrel export
   │  ├─ infrastructure/
   │  │  └─ LocalStorageService.ts   # Persistence layer
+  │  ├─ services/                   # Presentation services
+  │  │  ├─ DragAndDropService.ts    # Global drag state management
+  │  │  ├─ CollisionDetectionService.ts  # Overlap detection
+  │  │  └─ PositionCalculationService.ts # Auto-positioning
+  │  ├─ composables/                # Vue 3 composition functions
+  │  │  ├─ useDraggable.ts          # Drag behavior with threshold
+  │  │  └─ useHoverable.ts          # Hover detection with bounding boxes
   │  ├─ presentation/
   │  │  ├─ views/
-  │  │  │  └─ BeatEditorView.vue    # Main view with drag & drop
+  │  │  │  ├─ BeatEditorView.vue    # Canvas view with drag & drop
+  │  │  │  └─ BeatGridViewPage.vue  # Grid/table view
   │  │  └─ components/
+  │  │     ├─ AppToolbar.vue        # Top navigation bar
   │  │     ├─ BeatCard.vue          # Individual beat with drag handlers
-  │  │     ├─ BeatEditDialog.vue    # Beat editing modal (deprecated, use PropertiesPanel)
+  │  │     ├─ BeatGroupCard.vue     # Group container card
+  │  │     ├─ BlockCard.vue         # Block container card
+  │  │     ├─ LaneCard.vue          # Lane container card
+  │  │     ├─ BeatEditDialog.vue    # Beat editing modal (deprecated)
   │  │     ├─ BeatGridView.vue      # Table view of beats
   │  │     ├─ BeatTypeSelectDialog.vue
   │  │     ├─ PropertiesPanel.vue   # Dockable panel (AutoCAD-style)
   │  │     ├─ BeatPropertiesForm.vue
-  │  │     └─ ProjectPropertiesForm.vue
+  │  │     ├─ GroupPropertiesForm.vue
+  │  │     ├─ BlockPropertiesForm.vue
+  │  │     ├─ LanePropertiesForm.vue
+  │  │     ├─ ProjectPropertiesForm.vue
+  │  │     └─ CellEditorForm.vue    # Grid cell editor
+  │  ├─ router/
+  │  │  └─ index.ts                 # Vue Router (canvas/grid routes)
   │  ├─ i18n/
   │  │  ├─ index.ts                 # Vue I18n setup
   │  │  ├─ helpers.ts               # Translation helpers (t, getBeatTypeName, etc.)
   │  │  └─ locales/
   │  │     ├─ en-US.ts              # English (primary)
-  │  │     └─ es-ES.ts              # Spanish
+  │  │     ├─ en-US.json            # English JSON (backup)
+  │  │     ├─ es-ES.ts              # Spanish
+  │  │     └─ es-ES.json            # Spanish JSON (backup)
   │  ├─ plugins/
   │  │  └─ vuetify.ts
   │  └─ utils/
@@ -187,10 +269,21 @@ escaleta/
   ├─ tests/
   │  ├─ setup.ts                    # Vuetify mocks for Vitest
   │  ├─ unit/
-  │  │  ├─ ProjectService.test.ts   # 12 tests
-  │  │  ├─ LocalStorageService.test.ts  # 8 tests
-  │  │  ├─ uuid.test.ts             # 3 tests
-  │  │  └─ BeatEditorView.test.ts   # 3 tests (basic rendering)
+  │  │  ├─ ProjectService.test.ts   # Facade integration tests
+  │  │  ├─ services.test.ts         # Specialized services tests
+  │  │  ├─ beatOperations.test.ts   # Pure function tests
+  │  │  ├─ groupOperations.test.ts  # Group operations tests
+  │  │  ├─ blockOperations.simple.test.ts  # Block operations tests
+  │  │  ├─ laneOperations.simple.test.ts   # Lane operations tests
+  │  │  ├─ geometry.test.ts         # Layout calculations tests
+  │  │  ├─ CollisionDetectionService.test.ts
+  │  │  ├─ DragAndDropService.test.ts
+  │  │  ├─ PositionCalculationService.test.ts
+  │  │  ├─ useHoverable.test.ts     # Composable tests
+  │  │  ├─ i18n.test.ts             # i18n tests
+  │  │  ├─ LocalStorageService.test.ts
+  │  │  ├─ uuid.test.ts
+  │  │  └─ BeatEditorView.test.ts   # Basic rendering (excluded from coverage)
   │  └─ e2e/
   │     ├─ beat-editor.spec.ts      # Full user flows
   │     └─ mobile-touch.spec.ts
