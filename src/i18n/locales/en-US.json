@@ -112,12 +112,19 @@
     "confirmDeleteLane": "Are you sure you want to delete this lane? Blocks will remain."
   },
   "beatGrid": {
+    "lane": "Lane",
+    "block": "Block",
+    "group": "Group",
     "order": "Order",
     "title": "Title",
     "type": "Type",
+    "script": "Script",
     "duration": "Duration",
     "startTime": "Start Time",
-    "scene": "Scene"
+    "scene": "Scene",
+    "character": "Character",
+    "cue": "Cue",
+    "assets": "Assets"
   },
   "examples": {
     "projectName": "Example News Show",

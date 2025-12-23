@@ -25,18 +25,20 @@ domain/ (entities.ts + operations/ - pure functions)
 infrastructure/ (LocalStorageService - persistence)
 ```
 
-**Critical Patterns**: 
+**Critical Patterns**:
+
 - **Functional Core**: All `domain/operations/` are pure functions (no side effects, immutable)
 - **Service Shell**: `application/services/` orchestrate operations and handle cross-entity logic
 - **Facade Pattern**: `ProjectService` maintains backward compatibility, delegates to specialized services
 - **Dependency Injection**: Services injected via constructor (e.g., `ProjectService` injects `storageService`)
 - **Composables**: Vue 3 composables in `composables/` for reusable UI logic (`useDraggable`, `useHoverable`)
 
-**Internationalization**: Vue I18n with `vue-i18n` package. Helper functions in `i18n/helpers.ts` for translations outside component context (`t()`, `getBeatTypeName()`, `getNewBeatTitle()`). Supports Spanish (es-ES) and English (en-US).
+**Internationalization**: Vue I18n with `vue-i18n` package. **All translations are in JSON files** (`en-US.json` and `es-ES.json`). Helper functions in `i18n/helpers.ts` for translations outside component context (`t()`, `getBeatTypeName()`, `getNewBeatTitle()`). Supports Spanish (es-ES) and English (en-US).
 
 ## Core Workflows
 
 **Development**:
+
 ```bash
 npm run dev              # Vite dev server on port 3000 (NOT 5173)
 npm run build            # TypeScript check + Vite build
@@ -46,6 +48,7 @@ npm run format           # Prettier formatting
 ```
 
 **Testing**:
+
 ```bash
 npm test                 # Unit tests (Vitest)
 npm run test:watch       # Tests in watch mode
@@ -56,6 +59,7 @@ npm run test:e2e:debug   # Debug E2E tests
 ```
 
 **Routing**:
+
 - Default route `/` redirects to `/canvas`
 - `/canvas` - Canvas view with drag & drop (BeatEditorView.vue)
 - `/grid` - Grid/table view (BeatGridViewPage.vue)
@@ -64,12 +68,14 @@ npm run test:e2e:debug   # Debug E2E tests
 ## Testing Strategy (CRITICAL)
 
 **Unit tests** (Vitest + jsdom):
+
 - Test `application/`, `infrastructure/`, `utils/`, `domain/operations/` layers
 - **Presentation layer EXCLUDED from coverage** (`vite.config.ts`)
 - Why: Vue components better tested with E2E, not unit tests
 - Coverage target: 80% for business logic
 
 **Test files** (updated):
+
 - `beatOperations.test.ts`, `groupOperations.test.ts`, `blockOperations.test.ts`, `laneOperations.test.ts` - Pure function tests
 - `geometry.test.ts` - Layout calculation tests
 - `services.test.ts` - BeatManagementService, BlockManagementService, LaneManagementService tests
@@ -80,12 +86,14 @@ npm run test:e2e:debug   # Debug E2E tests
 - `LocalStorageService.test.ts`, `uuid.test.ts` - Infrastructure tests
 
 **E2E tests** (Playwright):
+
 - Test user flows, NOT code coverage
 - Auto-starts dev server (`webServer` in `playwright.config.ts`)
 - Use `data-testid` and `aria-label` attributes for selectors
 - Tests run on port 3000 (baseURL config)
 
 **Test Setup** (`tests/setup.ts`):
+
 - Mocks Vuetify CSS imports (jsdom doesn't handle CSS)
 - Stubs all Vuetify components globally to avoid rendering complexity
 - Required pattern for any new Vue component tests
@@ -93,6 +101,7 @@ npm run test:e2e:debug   # Debug E2E tests
 ## Component Patterns
 
 **Data Flow**:
+
 1. `BeatEditorView.vue` loads project via `ProjectService.loadCurrentProject()`
 2. User edits beat/group/block/lane → `ProjectService` methods → auto-saves to localStorage
 3. All state lives in reactive `project` ref, no Pinia/Vuex
@@ -100,12 +109,14 @@ npm run test:e2e:debug   # Debug E2E tests
 5. **Drag & Drop** handled by `DragAndDropService` with collision detection
 
 **New Entity Hierarchy**:
+
 - **Beats**: Individual production segments (unchanged)
 - **BeatGroups**: Collections of related beats that move together
 - **Blocks**: Horizontal containers for multiple BeatGroups
 - **Lanes**: Vertical containers for multiple Blocks (full production timeline)
 
 **Beat Creation Flow**:
+
 1. Click "Add beat" → opens `BeatTypeSelectDialog`
 2. Select type → creates beat with `ProjectService.createBeat(typeId)`
 3. Beat auto-saved to localStorage immediately
@@ -113,12 +124,14 @@ npm run test:e2e:debug   # Debug E2E tests
 5. Properties panel auto-hides when not pinned, can dock left/right/top/bottom, resizable
 
 **Group/Block/Lane Creation**:
+
 1. **Create Group**: Click "Create Group" button → creates empty BeatGroup
 2. **Add to Group**: Drag beat onto group card to add it
 3. **Create Block**: Click "Create Block" button → requires ≥2 groups to link
 4. **Create Lane**: Select blocks → creates vertical lane container
 
 **Drag & Drop System** (enhanced with composables):
+
 1. **useDraggable** composable handles mouse/touch events with threshold detection
 2. **DragAndDropService** manages global drag state and collision detection
 3. **CollisionDetectionService** detects overlaps between elements
@@ -126,6 +139,7 @@ npm run test:e2e:debug   # Debug E2E tests
 5. Visual feedback: hover states, magnet zones, collision highlighting
 
 **Vuetify v3 Specifics**:
+
 - Auto-import enabled (`vite-plugin-vuetify`)
 - Material Design Icons via `@mdi/font`
 - Use `v-model` not `:model-value` + `@update:model-value` for dialogs
@@ -150,16 +164,19 @@ All production fields are **optional** and visible in the Properties Panel when 
 ## File Conventions
 
 **Naming**:
+
 - Services: `PascalCaseService.ts` with singleton export (`export const projectService = new ProjectService()`)
 - Components: `PascalCase.vue`
 - Types: Defined in `domain/entities.ts`, imported as `import type { Beat } from '@/domain/entities'`
 - i18n helpers: `camelCase` functions in `i18n/helpers.ts`
 
 **Path Alias**:
+
 - `@/` resolves to `src/` (Vite config)
 - Always use `@/` for imports, never relative paths across layers
 
 **UUID Generation**:
+
 - Custom implementation in `utils/uuid.ts` (no external library)
 - Import as `import { v4 as uuidv4 } from '@/utils/uuid'`
 - Simple pattern-based generator (consider upgrading to 'uuid' library for production)
@@ -181,8 +198,8 @@ All production fields are **optional** and visible in the Properties Panel when 
 - `src/presentation/components/PropertiesPanel.vue` - Dockable properties panel (AutoCAD-style)
 - `src/router/index.ts` - Vue Router configuration
 - `src/i18n/helpers.ts` - Translation helpers for use outside components
-- `src/i18n/locales/en-US.ts` - English translations (primary)
-- `src/i18n/locales/es-ES.ts` - Spanish translations
+- `src/i18n/locales/en-US.json` - English translations (source of truth)
+- `src/i18n/locales/es-ES.json` - Spanish translations (source of truth)
 - `src/utils/uuid.ts` - Custom UUID v4 generator
 - `vite.config.ts` - Port 3000, coverage exclusions, Vuetify auto-import
 - `tests/setup.ts` - Required mocks for Vuetify in tests
@@ -190,9 +207,11 @@ All production fields are **optional** and visible in the Properties Panel when 
 ## Language & Localization
 
 **Vue I18n with dual language support**:
+
 - **Primary language**: English (en-US) - default fallback
 - **Secondary language**: Spanish (es-ES)
-- All translations in `src/i18n/locales/`
+- **All translations in JSON files**: `src/i18n/locales/en-US.json` and `es-ES.json`
+- When adding new translations, update both JSON files
 - Use `t()` helper from `i18n/helpers.ts` for translations outside components
 - Use `$t()` in Vue templates (auto-injected by Vue I18n)
 - Beat types: "Opening", "News", "Sports", "Weather", "Closing" (English)
@@ -302,7 +321,7 @@ escaleta/
 3. **Don't mock localStorage in E2E** - Tests use real localStorage, cleared in `beforeEach`
 4. **Don't import Vuetify components** - Auto-imported via `vite-plugin-vuetify`
 5. **Don't change dev server port** - Hardcoded to 3000 in multiple configs
-6. **Don't use string literals for UI text** - Use `t()` helper or `$t()` in templates for i18n
+6. **Don't use string literals for UI text** - Use `t()` helper or `$t()` in templates, all translations in JSON files
 7. **Don't modify beat positions directly** - Use ProjectService methods (`connectToTop()`, `connectToBottom()`, etc.)
 8. **Don't create circular beat chains** - ProjectService has protection (`isAfterBeat()` with visited Set)
 9. **Don't use external UUID library** - Custom implementation in `utils/uuid.ts` (simple but sufficient)

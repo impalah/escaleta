@@ -17,17 +17,16 @@
         <BeatGridView
           :beats="project.beats"
           :beat-types="project.beatTypes"
+          :beat-groups="project.beatGroups"
+          :blocks="project.blocks"
+          :lanes="project.lanes"
           @cell-click="handleCellClick"
         />
       </v-container>
     </v-main>
 
     <!-- Properties Panel (horizontal mode) for cell editing -->
-    <PropertiesPanel
-      v-if="selectedCell"
-      :title="getCellPanelTitle()"
-      orientation="horizontal"
-    >
+    <PropertiesPanel v-if="selectedCell" :title="getCellPanelTitle()" orientation="horizontal">
       <template #content>
         <CellEditorForm
           :cell-data="selectedCell"
@@ -106,17 +105,20 @@ function handleCreateBeat(typeId: string) {
   const newBeat = projectService.createBeat(typeId, project.value)
   project.value = {
     ...project.value,
-    beats: [...project.value.beats, newBeat],
+    beats: [...project.value.beats, newBeat]
   }
   projectService.saveCurrentProject(project.value)
   showNewBeatDialog.value = false
 }
 
 function handleCreateGroup() {
-  const newGroup = projectService.createBeatGroup(project.value, t('examples.newBeat', { type: 'Group' }))
+  const newGroup = projectService.createBeatGroup(
+    project.value,
+    t('examples.newBeat', { type: 'Group' })
+  )
   project.value = {
     ...project.value,
-    beatGroups: [...project.value.beatGroups, newGroup],
+    beatGroups: [...project.value.beatGroups, newGroup]
   }
   projectService.saveCurrentProject(project.value)
 }
@@ -129,7 +131,7 @@ function getCellPanelTitle(): string {
     title: t('beatProperties.title'),
     eventDuration: t('beatProperties.eventDuration'),
     eventStartTime: t('beatProperties.eventStartTime'),
-    scene: t('beatProperties.scene'),
+    scene: t('beatProperties.scene')
   }
   const fieldLabel = labels[selectedCell.value.field] || selectedCell.value.field
   return fieldLabel.toUpperCase()
@@ -148,10 +150,10 @@ function handleUpdateCell(beat: Beat, field: string, value: string | number) {
     ...beat,
     [field]: value
   }
-  
+
   // Update in project
   project.value = projectService.updateBeat(project.value, beat.id, updatedBeat)
-  
+
   // Update selected cell reference with updated beat
   const newBeat = project.value.beats.find(b => b.id === beat.id)
   if (newBeat && selectedCell.value) {
@@ -160,7 +162,7 @@ function handleUpdateCell(beat: Beat, field: string, value: string | number) {
       field: selectedCell.value.field
     }
   }
-  
+
   projectService.saveCurrentProject(project.value)
 }
 

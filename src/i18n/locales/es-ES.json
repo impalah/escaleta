@@ -112,12 +112,19 @@
     "confirmDeleteLane": "¿Estás seguro de que deseas eliminar este lane? Los blocks permanecerán."
   },
   "beatGrid": {
+    "lane": "Carril",
+    "block": "Bloque",
+    "group": "Grupo",
     "order": "Orden",
     "title": "Título",
     "type": "Tipo",
+    "script": "Guion",
     "duration": "Duración",
     "startTime": "Hora Inicio",
-    "scene": "Escena"
+    "scene": "Escena",
+    "character": "Personaje",
+    "cue": "Cue",
+    "assets": "Recursos"
   },
   "examples": {
     "projectName": "Show de Noticias de Ejemplo",
