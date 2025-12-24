@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createI18n } from 'vue-i18n'
 import { createRouter, createMemoryHistory } from 'vue-router'
-import BeatEditorView from '@/presentation/views/BeatEditorView.vue'
+import TimelineView from '@/presentation/views/TimelineView.vue'
 import esES from '@/i18n/locales/es-ES'
 import enUS from '@/i18n/locales/en-US'
 
@@ -20,9 +20,9 @@ const i18n = createI18n({
 const router = createRouter({
   history: createMemoryHistory(),
   routes: [
-    { path: '/', name: 'canvas', component: { template: '<div></div>' } },
-    { path: '/canvas', name: 'canvas', component: { template: '<div></div>' } },
-    { path: '/grid', name: 'grid', component: { template: '<div></div>' } }
+    { path: '/', name: 'timeline', component: { template: '<div></div>' } },
+    { path: '/timeline', name: 'timeline', component: { template: '<div></div>' } },
+    { path: '/rundown', name: 'rundown', component: { template: '<div></div>' } }
   ]
 })
 
@@ -32,7 +32,17 @@ vi.mock('@/presentation/components/AppToolbar.vue', () => ({
     name: 'AppToolbar',
     template: '<div class="app-toolbar"></div>',
     props: ['projectName', 'showZoomControls'],
-    emits: ['new-project', 'save', 'export-json', 'export-script', 'zoom-in', 'zoom-out', 'change-language', 'add-beat', 'create-group']
+    emits: [
+      'new-project',
+      'save',
+      'export-json',
+      'export-script',
+      'zoom-in',
+      'zoom-out',
+      'change-language',
+      'add-beat',
+      'create-group'
+    ]
   }
 }))
 
@@ -130,9 +140,7 @@ vi.mock('@/application/ProjectService', () => ({
     saveCurrentProject: vi.fn(),
     updateBeat: vi.fn((_project, beatId, updates) => ({
       ..._project,
-      beats: _project.beats.map((b: { id: string }) =>
-        b.id === beatId ? { ...b, ...updates } : b
-      )
+      beats: _project.beats.map((b: { id: string }) => (b.id === beatId ? { ...b, ...updates } : b))
     })),
     createBeat: vi.fn((typeId, _project) => ({
       id: 'new-beat',
@@ -149,7 +157,7 @@ vi.mock('@/application/ProjectService', () => ({
       beats: project.beats.filter((b: { id: string }) => b.id !== beatId)
     })),
     getGroupForBeat: vi.fn(() => null),
-    removeBeatFromGroup: vi.fn((project) => project),
+    removeBeatFromGroup: vi.fn(project => project),
     belongsToBeatGroup: vi.fn(() => false),
     belongsToBlock: vi.fn(() => false), // Add belongsToBlock mock
     getBlockForBeat: vi.fn(() => undefined), // Add getBlockForBeat mock
@@ -166,12 +174,12 @@ vi.mock('@/application/ProjectService', () => ({
   }
 }))
 
-describe('BeatEditorView', () => {
+describe('TimelineView', () => {
   it('should load and display project data', async () => {
-    await router.push('/canvas')
+    await router.push('/timeline')
     await router.isReady()
-    
-    const wrapper = mount(BeatEditorView, {
+
+    const wrapper = mount(TimelineView, {
       global: {
         plugins: [i18n, router]
       }
@@ -182,10 +190,10 @@ describe('BeatEditorView', () => {
   })
 
   it('should render beat cards with titles', async () => {
-    await router.push('/canvas')
+    await router.push('/timeline')
     await router.isReady()
-    
-    const wrapper = mount(BeatEditorView, {
+
+    const wrapper = mount(TimelineView, {
       global: {
         plugins: [i18n, router]
       }
@@ -195,10 +203,10 @@ describe('BeatEditorView', () => {
   })
 
   it('should have canvas container', async () => {
-    await router.push('/canvas')
+    await router.push('/timeline')
     await router.isReady()
-    
-    const wrapper = mount(BeatEditorView, {
+
+    const wrapper = mount(TimelineView, {
       global: {
         plugins: [i18n, router]
       }

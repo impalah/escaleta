@@ -5,5 +5,5 @@
 </template>
 
 <script setup lang="ts">
-// Router view will render BeatEditorView or BeatGridViewPage based on route
+// Router view will render TimelineView or RundownView based on route
 </script>

@@ -14,7 +14,7 @@
 
     <v-main>
       <v-container fluid>
-        <BeatGridView
+        <RundownTable
           :beats="project.beats"
           :beat-types="project.beatTypes"
           :beat-groups="project.beatGroups"
@@ -86,7 +86,7 @@ import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
 import AppToolbar from '@/presentation/components/AppToolbar.vue'
-import BeatGridView from '@/presentation/components/BeatGridView.vue'
+import RundownTable from '@/presentation/components/RundownTable.vue'
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import CellEditorForm from '@/presentation/components/CellEditorForm.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'

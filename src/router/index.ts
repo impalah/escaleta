@@ -4,27 +4,27 @@ import type { RouteRecordRaw } from 'vue-router'
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    redirect: '/canvas'
+    redirect: '/timeline'
   },
   {
-    path: '/canvas',
-    name: 'canvas',
-    component: () => import('@/presentation/views/BeatEditorView.vue'),
+    path: '/timeline',
+    name: 'timeline',
+    component: () => import('@/presentation/views/TimelineView.vue'),
     meta: {
-      title: 'Canvas View'
+      title: 'Timeline View'
     }
   },
   {
-    path: '/grid',
-    name: 'grid',
-    component: () => import('@/presentation/views/BeatGridViewPage.vue'),
+    path: '/rundown',
+    name: 'rundown',
+    component: () => import('@/presentation/views/RundownView.vue'),
     meta: {
-      title: 'Grid View'
+      title: 'Rundown View'
     }
   },
   {
     path: '/:pathMatch(.*)*',
-    redirect: '/canvas'
+    redirect: '/timeline'
   }
 ]
 

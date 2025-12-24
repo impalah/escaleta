@@ -173,18 +173,18 @@ interface BeatWithHierarchy extends Beat {
 }
 
 const headers = computed(() => [
-  { title: t('beatGrid.lane'), key: 'lane', width: 140, sortable: false },
-  { title: t('beatGrid.block'), key: 'block', width: 140, sortable: false },
-  { title: t('beatGrid.group'), key: 'group', width: 140, sortable: false },
-  { title: t('beatGrid.type'), key: 'typeId', width: 150, sortable: true },
-  { title: t('beatGrid.title'), key: 'title', width: 200, sortable: true },
-  { title: t('beatGrid.script'), key: 'description', width: 300, sortable: false },
-  { title: t('beatGrid.duration'), key: 'eventDuration', width: 120, sortable: false },
-  { title: t('beatGrid.startTime'), key: 'eventStartTime', width: 120, sortable: false },
-  { title: t('beatGrid.scene'), key: 'scene', width: 150, sortable: false },
-  { title: t('beatGrid.character'), key: 'character', width: 120, sortable: false },
-  { title: t('beatGrid.cue'), key: 'cue', width: 120, sortable: false },
-  { title: t('beatGrid.assets'), key: 'assets', width: 200, sortable: false }
+  { title: t('beatRundown.lane'), key: 'lane', width: 140, sortable: false },
+  { title: t('beatRundown.block'), key: 'block', width: 140, sortable: false },
+  { title: t('beatRundown.group'), key: 'group', width: 140, sortable: false },
+  { title: t('beatRundown.type'), key: 'typeId', width: 150, sortable: true },
+  { title: t('beatRundown.title'), key: 'title', width: 200, sortable: true },
+  { title: t('beatRundown.script'), key: 'description', width: 300, sortable: false },
+  { title: t('beatRundown.duration'), key: 'eventDuration', width: 120, sortable: false },
+  { title: t('beatRundown.startTime'), key: 'eventStartTime', width: 120, sortable: false },
+  { title: t('beatRundown.scene'), key: 'scene', width: 150, sortable: false },
+  { title: t('beatRundown.character'), key: 'character', width: 120, sortable: false },
+  { title: t('beatRundown.cue'), key: 'cue', width: 120, sortable: false },
+  { title: t('beatRundown.assets'), key: 'assets', width: 200, sortable: false }
 ])
 
 // Calculate contrasting text color (white or black) based on background color

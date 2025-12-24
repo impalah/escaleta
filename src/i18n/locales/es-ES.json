@@ -17,8 +17,8 @@
     "export": "Exportar",
     "exportToJSON": "Exportar a JSON",
     "exportToScript": "Exportar a Guion",
-    "canvasView": "Vista Canvas",
-    "gridView": "Vista Grid",
+    "timelineView": "Vista Timeline",
+    "rundownView": "Vista Rundown",
     "zoomIn": "Zoom +",
     "zoomOut": "Zoom -",
     "addBeat": "Añadir Beat",
@@ -113,7 +113,7 @@
     "confirmDeleteBlock": "¿Estás seguro de que deseas eliminar este block? Los grupos permanecerán.",
     "confirmDeleteLane": "¿Estás seguro de que deseas eliminar este lane? Los blocks permanecerán."
   },
-  "beatGrid": {
+  "beatRundown": {
     "lane": "Carril",
     "block": "Bloque",
     "group": "Grupo",
@@ -168,7 +168,7 @@
     "en-US": "English"
   },
   "views": {
-    "gridView": "Vista de Tabla",
-    "switchToCanvas": "Cambiar a Vista Canvas"
+    "rundownView": "Vista Rundown",
+    "switchToTimeline": "Cambiar a Vista Timeline"
   }
 }
