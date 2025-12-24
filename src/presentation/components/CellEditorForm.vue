@@ -14,25 +14,15 @@
         @update:model-value="handleUpdate"
       >
         <template #selection="{ item }">
-          <v-chip
-            :color="item.raw.color"
-            variant="flat"
-            size="small"
-          >
-            <v-icon
-              start
-              :icon="item.raw.icon"
-            />
+          <v-chip :color="item.raw.color" variant="flat" size="small">
+            <v-icon start :icon="item.raw.icon" />
             {{ item.title }}
           </v-chip>
         </template>
         <template #item="{ item, props: itemProps }">
           <v-list-item v-bind="itemProps">
             <template #prepend>
-              <v-icon
-                :icon="item.raw.icon"
-                :color="item.raw.color"
-              />
+              <v-icon :icon="item.raw.icon" :color="item.raw.color" />
             </template>
           </v-list-item>
         </template>
@@ -89,9 +79,7 @@
         @update:model-value="handleUpdate"
       />
 
-      <div class="text-caption text-medium-emphasis mt-2">
-        Beat: {{ cellData.beat.title }}
-      </div>
+      <div class="text-caption text-medium-emphasis mt-2">Beat: {{ cellData.beat.title }}</div>
     </v-card-text>
   </v-card>
 </template>
@@ -121,19 +109,23 @@ const emit = defineEmits<{
 const localValue = ref<string | number | string[] | null>(null)
 
 // Watch for cell data changes
-watch(() => props.cellData, (newData) => {
-  if (newData) {
-    const beat = newData.beat as Record<string, any>
-    let value = beat[newData.field]
-    
-    // Normalize old data: convert string to array for cue and assets
-    if ((newData.field === 'cue' || newData.field === 'assets') && typeof value === 'string') {
-      value = value ? [value] : []
+watch(
+  () => props.cellData,
+  newData => {
+    if (newData) {
+      const beat = newData.beat as Record<string, any>
+      let value = beat[newData.field]
+
+      // Normalize old data: convert string to array for cue and assets
+      if ((newData.field === 'cue' || newData.field === 'assets') && typeof value === 'string') {
+        value = value ? [value] : []
+      }
+
+      localValue.value = value
     }
-    
-    localValue.value = value
-  }
-}, { immediate: true })
+  },
+  { immediate: true }
+)
 
 function getFieldLabel(field: string): string {
   const labels: Record<string, string> = {
@@ -146,7 +138,7 @@ function getFieldLabel(field: string): string {
     character: t('beatProperties.character'),
     cue: t('beatProperties.cue'),
     assets: t('beatProperties.assets'),
-    description: t('beatProperties.script'),
+    description: t('beatProperties.script')
   }
   return labels[field] || field
 }

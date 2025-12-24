@@ -165,7 +165,7 @@
           @click.stop="handleCellClick(item, 'cue')"
           @mouseenter="handleBeatCellMouseEnter(item)"
         >
-          {{ Array.isArray(item.cue) ? item.cue.join(', ') : (item.cue || '—') }}
+          {{ Array.isArray(item.cue) ? item.cue.join(', ') : item.cue || '—' }}
         </div>
       </template>
 
