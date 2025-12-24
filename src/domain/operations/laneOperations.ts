@@ -11,11 +11,7 @@ import { calculateBlockHeight, LAYOUT_CONSTANTS } from './geometry'
  * Create a new Lane with given blocks
  * Returns updated project with the new lane and repositioned blocks
  */
-export function createLane(
-  project: Project,
-  blockIds: string[],
-  name?: string
-): Project {
+export function createLane(project: Project, blockIds: string[], name?: string): Project {
   const now = new Date().toISOString()
 
   const firstBlock = project.blocks.find(b => b.id === blockIds[0])
@@ -47,7 +43,13 @@ export function createLane(
     }
   })
 
+  // Generate random color for visual representation
+  const randomColor = `#${Math.floor(Math.random() * 16777215)
+    .toString(16)
+    .padStart(6, '0')}`
+
   const newLane: Lane = {
+    color: randomColor,
     id: uuidv4(),
     name: name || `Lane ${project.lanes.length + 1}`,
     blockIds: [...blockIds],
@@ -107,11 +109,7 @@ export function createLane(
  * Update a Lane
  * Returns updated project
  */
-export function updateLane(
-  project: Project,
-  laneId: string,
-  updates: Partial<Lane>
-): Project {
+export function updateLane(project: Project, laneId: string, updates: Partial<Lane>): Project {
   const now = new Date().toISOString()
 
   return {

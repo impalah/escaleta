@@ -21,17 +21,53 @@
           :blocks="project.blocks"
           :lanes="project.lanes"
           @cell-click="handleCellClick"
+          @lane-click="handleLaneClick"
+          @block-click="handleBlockClick"
+          @group-click="handleGroupClick"
         />
       </v-container>
     </v-main>
 
-    <!-- Properties Panel (horizontal mode) for cell editing -->
-    <PropertiesPanel v-if="selectedCell" :title="getCellPanelTitle()" orientation="horizontal">
+    <!-- Properties Panel (horizontal mode) for cell/entity editing -->
+    <PropertiesPanel
+      v-if="selectedCell || selectedLane || selectedBlock || selectedGroup"
+      :title="getPanelTitle()"
+      orientation="horizontal"
+    >
       <template #content>
+        <!-- Beat cell editor -->
         <CellEditorForm
+          v-if="selectedCell"
           :cell-data="selectedCell"
           :beat-types="project.beatTypes"
           @update-cell="handleUpdateCell"
+        />
+
+        <!-- Lane properties -->
+        <LanePropertiesForm
+          v-else-if="selectedLane"
+          :lane="selectedLane"
+          :project="project"
+          @update="handleUpdateLane"
+          @delete="handleDeleteLane"
+        />
+
+        <!-- Block properties -->
+        <BlockPropertiesForm
+          v-else-if="selectedBlock"
+          :block="selectedBlock"
+          :project="project"
+          @update="handleUpdateBlock"
+          @delete="handleDeleteBlock"
+        />
+
+        <!-- Group properties -->
+        <GroupPropertiesForm
+          v-else-if="selectedGroup"
+          :group="selectedGroup"
+          :project="project"
+          @update="handleUpdateGroup"
+          @delete="handleDeleteGroup"
         />
       </template>
     </PropertiesPanel>
@@ -54,8 +90,11 @@ import BeatGridView from '@/presentation/components/BeatGridView.vue'
 import PropertiesPanel from '@/presentation/components/PropertiesPanel.vue'
 import CellEditorForm from '@/presentation/components/CellEditorForm.vue'
 import BeatTypeSelectDialog from '@/presentation/components/BeatTypeSelectDialog.vue'
+import LanePropertiesForm from '@/presentation/components/LanePropertiesForm.vue'
+import BlockPropertiesForm from '@/presentation/components/BlockPropertiesForm.vue'
+import GroupPropertiesForm from '@/presentation/components/GroupPropertiesForm.vue'
 import { projectService } from '@/application/ProjectService'
-import type { Project, Beat } from '@/domain/entities'
+import type { Project, Beat, Lane, Block, BeatGroup } from '@/domain/entities'
 
 const { t, locale } = useI18n()
 
@@ -67,6 +106,9 @@ interface SelectedCell {
   field: string
 }
 const selectedCell = ref<SelectedCell | null>(null)
+const selectedLane = ref<Lane | null>(null)
+const selectedBlock = ref<Block | null>(null)
+const selectedGroup = ref<BeatGroup | null>(null)
 const showNewBeatDialog = ref(false)
 
 onMounted(() => {
@@ -123,25 +165,59 @@ function handleCreateGroup() {
   projectService.saveCurrentProject(project.value)
 }
 
-function getCellPanelTitle(): string {
-  if (!selectedCell.value) return 'CELL EDITOR'
-  const labels: Record<string, string> = {
-    typeId: t('beatProperties.type'),
-    order: t('beatProperties.order'),
-    title: t('beatProperties.title'),
-    eventDuration: t('beatProperties.eventDuration'),
-    eventStartTime: t('beatProperties.eventStartTime'),
-    scene: t('beatProperties.scene')
+function getPanelTitle(): string {
+  if (selectedCell.value) {
+    const labels: Record<string, string> = {
+      typeId: t('beatProperties.type'),
+      order: t('beatProperties.order'),
+      title: t('beatProperties.title'),
+      eventDuration: t('beatProperties.eventDuration'),
+      eventStartTime: t('beatProperties.eventStartTime'),
+      scene: t('beatProperties.scene')
+    }
+    const fieldLabel = labels[selectedCell.value.field] || selectedCell.value.field
+    return fieldLabel.toUpperCase()
   }
-  const fieldLabel = labels[selectedCell.value.field] || selectedCell.value.field
-  return fieldLabel.toUpperCase()
+  if (selectedLane.value) {
+    return t('propertiesPanel.lane')
+  }
+  if (selectedBlock.value) {
+    return t('propertiesPanel.block')
+  }
+  if (selectedGroup.value) {
+    return t('propertiesPanel.group')
+  }
+  return 'PROPERTIES'
+}
+
+function clearSelection() {
+  selectedCell.value = null
+  selectedLane.value = null
+  selectedBlock.value = null
+  selectedGroup.value = null
 }
 
 function handleCellClick(beat: Beat, field: string) {
+  clearSelection()
   selectedCell.value = {
     beat,
     field
   }
+}
+
+function handleLaneClick(lane: Lane) {
+  clearSelection()
+  selectedLane.value = lane
+}
+
+function handleBlockClick(block: Block) {
+  clearSelection()
+  selectedBlock.value = block
+}
+
+function handleGroupClick(group: BeatGroup) {
+  clearSelection()
+  selectedGroup.value = group
 }
 
 function handleUpdateCell(beat: Beat, field: string, value: string | number) {
@@ -164,6 +240,48 @@ function handleUpdateCell(beat: Beat, field: string, value: string | number) {
   }
 
   projectService.saveCurrentProject(project.value)
+}
+
+function handleUpdateLane(updatedLane: Lane) {
+  project.value = projectService.updateLane(project.value, updatedLane.id, updatedLane)
+  selectedLane.value = project.value.lanes.find(l => l.id === updatedLane.id) || null
+  projectService.saveCurrentProject(project.value)
+}
+
+function handleDeleteLane(laneId: string) {
+  if (confirm(t('messages.confirmDeleteLane'))) {
+    project.value = projectService.deleteLane(project.value, laneId)
+    clearSelection()
+    projectService.saveCurrentProject(project.value)
+  }
+}
+
+function handleUpdateBlock(updatedBlock: Block) {
+  project.value = projectService.updateBlock(project.value, updatedBlock.id, updatedBlock)
+  selectedBlock.value = project.value.blocks.find(b => b.id === updatedBlock.id) || null
+  projectService.saveCurrentProject(project.value)
+}
+
+function handleDeleteBlock(blockId: string) {
+  if (confirm(t('messages.confirmDeleteBlock'))) {
+    project.value = projectService.deleteBlock(project.value, blockId)
+    clearSelection()
+    projectService.saveCurrentProject(project.value)
+  }
+}
+
+function handleUpdateGroup(updatedGroup: BeatGroup) {
+  project.value = projectService.updateBeatGroup(project.value, updatedGroup.id, updatedGroup)
+  selectedGroup.value = project.value.beatGroups.find(g => g.id === updatedGroup.id) || null
+  projectService.saveCurrentProject(project.value)
+}
+
+function handleDeleteGroup(groupId: string) {
+  if (confirm(t('groupProperties.deleteConfirm', { name: selectedGroup.value?.name || '' }))) {
+    project.value = projectService.deleteBeatGroup(project.value, groupId)
+    clearSelection()
+    projectService.saveCurrentProject(project.value)
+  }
 }
 
 function changeLanguage(langCode: string) {

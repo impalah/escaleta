@@ -41,6 +41,8 @@
     "project": "Propiedades del Proyecto",
     "beat": "Propiedades del Beat",
     "group": "Propiedades del Grupo",
+    "block": "Propiedades del Bloque",
+    "lane": "Propiedades del Carril",
     "maximize": "Maximizar",
     "restore": "Restaurar",
     "dockLeft": "Anclar a izquierda",

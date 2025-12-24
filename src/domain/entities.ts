@@ -60,6 +60,7 @@ export interface Block {
   name: string
   groupIds: string[] // IDs of BeatGroups that belong to this block (ordered left to right)
   position: Position // Visual position on canvas (top-left)
+  color?: string // Hex color for block visualization (optional)
   createdAt: string
   updatedAt: string
 }
@@ -69,6 +70,7 @@ export interface Lane {
   name: string
   blockIds: string[] // IDs of Blocks that belong to this lane (ordered top to bottom)
   position: Position // Visual position on canvas (top-left of header)
+  color?: string // Hex color for lane visualization (optional)
   createdAt: string
   updatedAt: string
 }

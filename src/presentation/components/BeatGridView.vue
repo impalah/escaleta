@@ -10,23 +10,56 @@
     hide-default-footer
   >
     <!-- Lane column -->
-    <template #[`item.laneName`]="{ item }">
+    <template #[`item.lane`]="{ item }">
       <div class="grid-cell">
-        {{ item.laneName || '—' }}
+        <v-chip
+          v-if="item.lane"
+          :color="item.lane.color || '#9E9E9E'"
+          :text-color="getContrastColor(item.lane.color || '#9E9E9E')"
+          variant="flat"
+          size="small"
+          class="font-weight-medium clickable-chip"
+          @click.stop="handleLaneClick(item.lane)"
+        >
+          {{ item.lane.name }}
+        </v-chip>
+        <span v-else>—</span>
       </div>
     </template>
 
     <!-- Block column -->
-    <template #[`item.blockName`]="{ item }">
+    <template #[`item.block`]="{ item }">
       <div class="grid-cell">
-        {{ item.blockName || '—' }}
+        <v-chip
+          v-if="item.block"
+          :color="item.block.color || '#757575'"
+          :text-color="getContrastColor(item.block.color || '#757575')"
+          variant="flat"
+          size="small"
+          class="font-weight-medium clickable-chip"
+          @click.stop="handleBlockClick(item.block)"
+        >
+          {{ item.block.name }}
+        </v-chip>
+        <span v-else>—</span>
       </div>
     </template>
 
     <!-- Group column -->
-    <template #[`item.groupName`]="{ item }">
+    <template #[`item.group`]="{ item }">
       <div class="grid-cell">
-        {{ item.groupName || '—' }}
+        <v-chip
+          v-if="item.group"
+          :color="item.group.color || '#BDBDBD'"
+          :text-color="getContrastColor(item.group.color || '#BDBDBD')"
+          variant="flat"
+          size="small"
+          class="font-weight-medium clickable-chip"
+          @click.stop="handleGroupClick(item.group)"
+        >
+          {{ item.group.name }}
+        </v-chip>
+        <span v-else>—</span>
       </div>
     </template>
 
@@ -128,18 +161,21 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   'cell-click': [beat: Beat, field: string]
+  'lane-click': [lane: Lane]
+  'block-click': [block: Block]
+  'group-click': [group: BeatGroup]
 }>()
 
 interface BeatWithHierarchy extends Beat {
-  laneName?: string
-  blockName?: string
-  groupName?: string
+  lane?: Lane
+  block?: Block
+  group?: BeatGroup
 }
 
 const headers = computed(() => [
-  { title: t('beatGrid.lane'), key: 'laneName', width: 120, sortable: false },
-  { title: t('beatGrid.block'), key: 'blockName', width: 120, sortable: false },
-  { title: t('beatGrid.group'), key: 'groupName', width: 120, sortable: false },
+  { title: t('beatGrid.lane'), key: 'lane', width: 140, sortable: false },
+  { title: t('beatGrid.block'), key: 'block', width: 140, sortable: false },
+  { title: t('beatGrid.group'), key: 'group', width: 140, sortable: false },
   { title: t('beatGrid.type'), key: 'typeId', width: 150, sortable: true },
   { title: t('beatGrid.title'), key: 'title', width: 200, sortable: true },
   { title: t('beatGrid.script'), key: 'description', width: 300, sortable: false },
@@ -150,6 +186,24 @@ const headers = computed(() => [
   { title: t('beatGrid.cue'), key: 'cue', width: 120, sortable: false },
   { title: t('beatGrid.assets'), key: 'assets', width: 200, sortable: false }
 ])
+
+// Calculate contrasting text color (white or black) based on background color
+function getContrastColor(hexColor: string): string {
+  // Remove # if present
+  const hex = hexColor.replace('#', '')
+
+  // Convert to RGB
+  const r = parseInt(hex.substring(0, 2), 16)
+  const g = parseInt(hex.substring(2, 4), 16)
+  const b = parseInt(hex.substring(4, 6), 16)
+
+  // Calculate relative luminance using W3C formula
+  // https://www.w3.org/TR/WCAG20/#relativeluminancedef
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+  // Return white for dark backgrounds, black for light backgrounds
+  return luminance > 0.5 ? '#000000' : '#FFFFFF'
+}
 
 // Hierarchical ordering: Lane → Block → Group → Beat
 const hierarchicalBeats = computed(() => {
@@ -171,10 +225,10 @@ const hierarchicalBeats = computed(() => {
     return props.lanes.find(l => l.blockIds.includes(blockId))
   }
 
-  // Helper to add beat with hierarchy info
-  function addBeat(beat: Beat, laneName?: string, blockName?: string, groupName?: string) {
+  // Helper to add beat with hierarchy info (now passing objects instead of names)
+  function addBeat(beat: Beat, lane?: Lane, block?: Block, group?: BeatGroup) {
     if (!processedBeats.has(beat.id)) {
-      result.push({ ...beat, laneName, blockName, groupName })
+      result.push({ ...beat, lane, block, group })
       processedBeats.add(beat.id)
     }
   }
@@ -190,7 +244,7 @@ const hierarchicalBeats = computed(() => {
             group.beatIds.forEach(beatId => {
               const beat = props.beats.find(b => b.id === beatId)
               if (beat) {
-                addBeat(beat, lane.name, block.name, group.name)
+                addBeat(beat, lane, block, group)
               }
             })
           }
@@ -209,7 +263,7 @@ const hierarchicalBeats = computed(() => {
           group.beatIds.forEach(beatId => {
             const beat = props.beats.find(b => b.id === beatId)
             if (beat) {
-              addBeat(beat, undefined, block.name, group.name)
+              addBeat(beat, undefined, block, group)
             }
           })
         }
@@ -224,7 +278,7 @@ const hierarchicalBeats = computed(() => {
       group.beatIds.forEach(beatId => {
         const beat = props.beats.find(b => b.id === beatId)
         if (beat) {
-          addBeat(beat, undefined, undefined, group.name)
+          addBeat(beat, undefined, undefined, group)
         }
       })
     }
@@ -247,6 +301,18 @@ function getBeatType(typeId: string): BeatType | undefined {
 
 function handleCellClick(beat: Beat, field: string) {
   emit('cell-click', beat, field)
+}
+
+function handleLaneClick(lane: Lane) {
+  emit('lane-click', lane)
+}
+
+function handleBlockClick(block: Block) {
+  emit('block-click', block)
+}
+
+function handleGroupClick(group: BeatGroup) {
+  emit('group-click', group)
 }
 </script>
 
@@ -343,5 +409,15 @@ function handleCellClick(beat: Beat, field: string) {
 
 :deep(.v-table__wrapper::-webkit-scrollbar-thumb:hover) {
   background: #555;
+}
+
+/* Clickable chips cursor */
+.clickable-chip {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.clickable-chip:hover {
+  opacity: 0.85;
 }
 </style>

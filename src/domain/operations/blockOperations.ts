@@ -26,6 +26,11 @@ export function createBlock(
   const firstGroup = project.beatGroups.find(g => g.id === groupIds[0])
   if (!firstGroup) return project
 
+  // Generate random color for visual representation
+  const randomColor = `#${Math.floor(Math.random() * 16777215)
+    .toString(16)
+    .padStart(6, '0')}`
+
   const newBlock: Block = {
     id: uuidv4(),
     name,
@@ -34,6 +39,7 @@ export function createBlock(
       x: firstGroup.position.x,
       y: firstGroup.position.y - LAYOUT_CONSTANTS.BLOCK_HEADER_HEIGHT
     },
+    color: randomColor,
     createdAt: now,
     updatedAt: now
   }
@@ -46,7 +52,7 @@ export function createBlock(
 
   // Reposition groups horizontally within the block
   updatedProject = repositionGroupsInBlock(updatedProject, newBlock.id)
-  
+
   return updatedProject
 }
 
@@ -109,7 +115,7 @@ export function addGroupToBlock(
     const targetIndex = block.groupIds.indexOf(targetGroupId)
     newGroupIds = [...block.groupIds]
     const currentIndex = newGroupIds.indexOf(groupId)
-    
+
     if (currentIndex !== -1) {
       newGroupIds.splice(currentIndex, 1)
       const adjustedTargetIndex = currentIndex < targetIndex ? targetIndex - 1 : targetIndex
@@ -118,9 +124,7 @@ export function addGroupToBlock(
       newGroupIds.splice(targetIndex, 0, groupId)
     }
   } else {
-    newGroupIds = block.groupIds.includes(groupId)
-      ? block.groupIds
-      : [...block.groupIds, groupId]
+    newGroupIds = block.groupIds.includes(groupId) ? block.groupIds : [...block.groupIds, groupId]
   }
 
   const now = new Date().toISOString()
@@ -152,11 +156,7 @@ export function addGroupToBlock(
  * If only 1 group remains, delete the Block
  * Returns updated project
  */
-export function removeGroupFromBlock(
-  project: Project,
-  blockId: string,
-  groupId: string
-): Project {
+export function removeGroupFromBlock(project: Project, blockId: string, groupId: string): Project {
   const block = (project.blocks || []).find(b => b.id === blockId)
   if (!block) return project
 
@@ -215,8 +215,7 @@ export function repositionGroupsInBlock(project: Project, blockId: string): Proj
 
       if (indexInBlock !== -1) {
         const newX =
-          block.position.x +
-          indexInBlock * (LAYOUT_CONSTANTS.GROUP_WIDTH + LAYOUT_CONSTANTS.GAP)
+          block.position.x + indexInBlock * (LAYOUT_CONSTANTS.GROUP_WIDTH + LAYOUT_CONSTANTS.GAP)
 
         return {
           ...group,

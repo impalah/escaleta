@@ -41,6 +41,8 @@
     "project": "Project Properties",
     "beat": "Beat Properties",
     "group": "Group Properties",
+    "block": "Block Properties",
+    "lane": "Lane Properties",
     "maximize": "Maximize",
     "restore": "Restore",
     "dockLeft": "Dock Left",
