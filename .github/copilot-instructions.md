@@ -156,7 +156,7 @@ The `Beat` entity includes professional broadcast production fields:
 - **Production fields**:
   - `scene` - Location/setting indicators (e.g., "INT. STUDIO - DAY")
   - `character` - Talent/performer performing the action (e.g., "Main Presenter")
-  - `cue` - Technical cue or trigger event (e.g., "VTR START", "CAMERA 2")
+  - `cue` - Array of technical cues or trigger events (e.g., ["VTR START", "CAMERA 2"])
   - `assets` - Array of required resources/assets for the beat
 
 All production fields are **optional** and visible in the Properties Panel when editing a beat.

@@ -19,6 +19,7 @@
     "exportToScript": "Export to Script",
     "timelineView": "Timeline View",
     "rundownView": "Rundown View",
+    "fountainView": "Fountain View",
     "zoomIn": "Zoom In",
     "zoomOut": "Zoom Out",
     "addBeat": "Add Beat",
@@ -68,8 +69,8 @@
     "sceneHint": "E.g: INT. STUDIO - DAY",
     "character": "Character",
     "characterHint": "E.g: Main Presenter",
-    "cue": "Cue",
-    "cueHint": "Technical cue, event",
+    "cue": "Technical Cues",
+    "cueHint": "Technical events to trigger (e.g., VTR START, CAMERA 2, LIGHTS UP)",
     "assets": "Assets",
     "assetsHint": "Required resources",
     "script": "Script",
@@ -113,6 +114,11 @@
     "confirmDeleteBlock": "Are you sure you want to delete this block? Groups will remain.",
     "confirmDeleteLane": "Are you sure you want to delete this lane? Blocks will remain."
   },
+  "fountainView": {
+    "title": "Fountain View",
+    "placeholder": "Start writing your script in Fountain format...",
+    "emptyPlaceholder": "# Your Script\n\nStart writing here...\n\nINT. STUDIO - DAY\n\nThe show begins."
+  },
   "beatRundown": {
     "lane": "Lane",
     "block": "Block",
@@ -125,7 +131,7 @@
     "startTime": "Start Time",
     "scene": "Scene",
     "character": "Character",
-    "cue": "Cue",
+    "cue": "Technical Cues",
     "assets": "Assets"
   },
   "examples": {

@@ -84,14 +84,18 @@
       @input="handleUpdate"
     />
 
-    <v-text-field
+    <v-combobox
       v-model="localBeat.cue"
       :label="t('beatProperties.cue')"
       variant="outlined"
       density="comfortable"
-      :placeholder="t('beatProperties.cueHint')"
+      multiple
+      chips
+      closable-chips
+      :hint="t('beatProperties.cueHint')"
+      persistent-hint
       class="mb-4"
-      @input="handleUpdate"
+      @update:model-value="handleUpdate"
     />
 
     <v-combobox
@@ -135,18 +139,22 @@ const emit = defineEmits<{
   update: [beat: Beat]
 }>()
 
-const localBeat = ref<Beat>({ 
+const localBeat = ref<Beat>({
   ...props.beat,
   assets: props.beat.assets || [] // Ensure assets is always an array
 })
 
 // Watch for external changes to beat
-watch(() => props.beat, (newBeat) => {
-  localBeat.value = { 
-    ...newBeat,
-    assets: newBeat.assets || [] // Ensure assets is always an array
-  }
-}, { deep: true })
+watch(
+  () => props.beat,
+  newBeat => {
+    localBeat.value = {
+      ...newBeat,
+      assets: newBeat.assets || [] // Ensure assets is always an array
+    }
+  },
+  { deep: true }
+)
 
 const beatTypeItems = computed(() =>
   props.beatTypes.map(type => ({

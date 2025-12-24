@@ -49,6 +49,36 @@
         @update:model-value="handleUpdate"
       />
 
+      <!-- Combobox for cue (multiple chips) -->
+      <v-combobox
+        v-else-if="cellData.field === 'cue'"
+        v-model="localValue"
+        :label="getFieldLabel(cellData.field)"
+        density="comfortable"
+        variant="outlined"
+        multiple
+        chips
+        closable-chips
+        :hint="t('beatProperties.cueHint')"
+        persistent-hint
+        @update:model-value="handleUpdate"
+      />
+
+      <!-- Combobox for assets (multiple chips) -->
+      <v-combobox
+        v-else-if="cellData.field === 'assets'"
+        v-model="localValue"
+        :label="getFieldLabel(cellData.field)"
+        density="comfortable"
+        variant="outlined"
+        multiple
+        chips
+        closable-chips
+        :hint="t('beatProperties.assetsHint')"
+        persistent-hint
+        @update:model-value="handleUpdate"
+      />
+
       <!-- Text input for other fields -->
       <v-text-field
         v-else
@@ -84,17 +114,24 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  'update-cell': [beat: Beat, field: string, value: string | number]
+  'update-cell': [beat: Beat, field: string, value: string | number | string[]]
 }>()
 
 // Local value for editing
-const localValue = ref<string | number | null>(null)
+const localValue = ref<string | number | string[] | null>(null)
 
 // Watch for cell data changes
 watch(() => props.cellData, (newData) => {
   if (newData) {
-    const beat = newData.beat as Record<string, string | number>
-    localValue.value = beat[newData.field]
+    const beat = newData.beat as Record<string, any>
+    let value = beat[newData.field]
+    
+    // Normalize old data: convert string to array for cue and assets
+    if ((newData.field === 'cue' || newData.field === 'assets') && typeof value === 'string') {
+      value = value ? [value] : []
+    }
+    
+    localValue.value = value
   }
 }, { immediate: true })
 
@@ -106,6 +143,10 @@ function getFieldLabel(field: string): string {
     eventDuration: t('beatProperties.eventDuration'),
     eventStartTime: t('beatProperties.eventStartTime'),
     scene: t('beatProperties.scene'),
+    character: t('beatProperties.character'),
+    cue: t('beatProperties.cue'),
+    assets: t('beatProperties.assets'),
+    description: t('beatProperties.script'),
   }
   return labels[field] || field
 }

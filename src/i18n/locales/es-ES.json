@@ -68,8 +68,8 @@
     "sceneHint": "Ej: INT. ESTUDIO - DÍA",
     "character": "Personaje",
     "characterHint": "Ej: Presentador Principal",
-    "cue": "Cue",
-    "cueHint": "Indicación técnica, evento",
+    "cue": "Cues Técnicos",
+    "cueHint": "Eventos técnicos a disparar (ej: VTR START, CÁMARA 2, LUCES)",
     "assets": "Assets",
     "assetsHint": "Recursos necesarios",
     "script": "Guion",
@@ -113,6 +113,11 @@
     "confirmDeleteBlock": "¿Estás seguro de que deseas eliminar este block? Los grupos permanecerán.",
     "confirmDeleteLane": "¿Estás seguro de que deseas eliminar este lane? Los blocks permanecerán."
   },
+  "fountainView": {
+    "title": "Vista Fountain",
+    "placeholder": "Comienza a escribir tu guión en formato Fountain...",
+    "emptyPlaceholder": "# Tu Guión\n\nComienza a escribir aquí...\n\nINT. ESTUDIO - DÍA\n\nEl programa comienza."
+  },
   "beatRundown": {
     "lane": "Carril",
     "block": "Bloque",
@@ -125,7 +130,7 @@
     "startTime": "Hora Inicio",
     "scene": "Escena",
     "character": "Personaje",
-    "cue": "Cue",
+    "cue": "Cues Técnicos",
     "assets": "Recursos"
   },
   "examples": {

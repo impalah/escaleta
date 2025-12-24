@@ -60,6 +60,12 @@
           {{ t('toolbar.rundownView') }}
         </v-tooltip>
       </v-btn>
+      <v-btn value="fountain" size="small" aria-label="Fountain view" :to="{ name: 'fountain' }">
+        <v-icon>mdi-fountain</v-icon>
+        <v-tooltip activator="parent" location="bottom">
+          {{ t('toolbar.fountainView') }}
+        </v-tooltip>
+      </v-btn>
     </v-btn-toggle>
 
     <v-divider vertical class="mx-2" />
@@ -105,14 +111,26 @@
 
     <v-divider vertical class="mx-2" />
 
-    <v-btn icon color="accent" aria-label="Add beat" @click="$emit('add-beat')">
+    <v-btn
+      v-if="!hideBeatControls"
+      icon
+      color="accent"
+      aria-label="Add beat"
+      @click="$emit('add-beat')"
+    >
       <v-icon>mdi-plus-circle</v-icon>
       <v-tooltip activator="parent" location="bottom">
         {{ t('toolbar.addBeat') }}
       </v-tooltip>
     </v-btn>
 
-    <v-btn icon color="secondary" aria-label="Create group" @click="$emit('create-group')">
+    <v-btn
+      v-if="!hideBeatControls"
+      icon
+      color="secondary"
+      aria-label="Create group"
+      @click="$emit('create-group')"
+    >
       <v-icon>mdi-group</v-icon>
       <v-tooltip activator="parent" location="bottom">
         {{ t('toolbar.createGroup') }}
@@ -132,6 +150,7 @@ const route = useRoute()
 defineProps<{
   projectName: string
   showZoomControls?: boolean
+  hideBeatControls?: boolean
 }>()
 
 defineEmits<{
@@ -147,6 +166,8 @@ defineEmits<{
 }>()
 
 const currentView = computed(() => {
-  return route.name === 'rundown' ? 'rundown' : 'timeline'
+  if (route.name === 'rundown') return 'rundown'
+  if (route.name === 'fountain') return 'fountain'
+  return 'timeline'
 })
 </script>

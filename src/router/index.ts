@@ -23,6 +23,14 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/fountain',
+    name: 'fountain',
+    component: () => import('@/presentation/views/FountainView.vue'),
+    meta: {
+      title: 'Fountain View'
+    }
+  },
+  {
     path: '/:pathMatch(.*)*',
     redirect: '/timeline'
   }

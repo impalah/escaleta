@@ -23,7 +23,7 @@ export interface Beat {
   eventStartTime?: string // Format: hh:mm:ss.ms (milliseconds optional)
   scene?: string // INT/EXT, location, day/night indicators
   character?: string // Character performing the action
-  cue?: string // Technical event to trigger
+  cue?: string[] // List of technical events to trigger (VTR START, CAMERA 2, etc.)
   assets?: string[] // List of assets to include
   createdAt: string
   updatedAt: string

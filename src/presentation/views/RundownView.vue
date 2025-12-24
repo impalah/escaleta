@@ -223,7 +223,7 @@ function handleGroupClick(group: BeatGroup) {
   selectedGroup.value = group
 }
 
-function handleUpdateCell(beat: Beat, field: string, value: string | number) {
+function handleUpdateCell(beat: Beat, field: string, value: string | number | string[]) {
   // Create updated beat with new field value
   const updatedBeat = {
     ...beat,
