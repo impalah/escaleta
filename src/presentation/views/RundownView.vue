@@ -24,6 +24,9 @@
           @lane-click="handleLaneClick"
           @block-click="handleBlockClick"
           @group-click="handleGroupClick"
+          @drag-start="handleDragStart"
+          @drag-move="handleDragMove"
+          @drag-end="handleDragEnd"
         />
       </v-container>
     </v-main>
@@ -287,6 +290,143 @@ function handleDeleteGroup(groupId: string) {
 function changeLanguage(langCode: string) {
   locale.value = langCode
   setLanguage(langCode)
+}
+
+// Drag and drop handlers
+interface BeatWithHierarchy extends Beat {
+  lane?: Lane
+  block?: Block
+  group?: BeatGroup
+}
+
+function handleDragStart(beat: BeatWithHierarchy) {
+  console.log('Drag started:', beat.title)
+}
+
+function handleDragMove(beat: BeatWithHierarchy, deltaY: number) {
+  console.log('Drag moving:', beat.title, 'deltaY:', deltaY)
+}
+
+function handleDragEnd(
+  beat: BeatWithHierarchy,
+  dropTarget: { type: 'beat' | 'group' | 'lane' | 'block' | null; data: any }
+) {
+  console.log('Drag ended:', beat.title, 'Drop target:', dropTarget)
+
+  // Ignora el drop si el beat se suelta sobre sí mismo
+  if (dropTarget.type === 'beat' && dropTarget.data?.id === beat.id) {
+    return
+  }
+
+  // Encuentra el group actual del beat origin
+  const sourceGroup = project.value.beatGroups.find(g => g.beatIds.includes(beat.id))
+
+  if (dropTarget.type === 'beat') {
+    // Drop sobre un Beat
+    const targetBeat = dropTarget.data as Beat
+    const targetGroup = project.value.beatGroups.find(g => g.beatIds.includes(targetBeat.id))
+
+    if (!targetGroup) {
+      // El Beat destino NO forma parte de ningún Group
+      // → Eliminar el Beat origen de su Group (si tiene)
+      if (sourceGroup) {
+        const updatedGroup = {
+          ...sourceGroup,
+          beatIds: sourceGroup.beatIds.filter(id => id !== beat.id)
+        }
+        project.value = projectService.updateBeatGroup(project.value, sourceGroup.id, updatedGroup)
+        projectService.saveCurrentProject(project.value)
+      }
+    } else {
+      // El Beat destino SÍ forma parte de un Group
+      // → Aplicar regla Timeline: beat origen ocupa lugar de beat destino
+
+      // Primero remover beat origen de su group actual (si tiene y es diferente al destino)
+      if (sourceGroup && sourceGroup.id !== targetGroup.id) {
+        const updatedSourceGroup = {
+          ...sourceGroup,
+          beatIds: sourceGroup.beatIds.filter(id => id !== beat.id)
+        }
+        project.value = projectService.updateBeatGroup(
+          project.value,
+          sourceGroup.id,
+          updatedSourceGroup
+        )
+      }
+
+      // Luego insertar beat origen en la posición del beat destino
+      const targetIndex = targetGroup.beatIds.indexOf(targetBeat.id)
+      let newBeatIds: string[]
+
+      if (sourceGroup?.id === targetGroup.id) {
+        // Mismo group: reordenar
+        newBeatIds = targetGroup.beatIds.filter(id => id !== beat.id)
+        newBeatIds.splice(targetIndex, 0, beat.id)
+      } else {
+        // Diferente group: insertar
+        newBeatIds = [...targetGroup.beatIds]
+        newBeatIds.splice(targetIndex, 0, beat.id)
+      }
+
+      const updatedTargetGroup = {
+        ...targetGroup,
+        beatIds: newBeatIds
+      }
+      project.value = projectService.updateBeatGroup(
+        project.value,
+        targetGroup.id,
+        updatedTargetGroup
+      )
+      projectService.saveCurrentProject(project.value)
+    }
+  } else if (dropTarget.type === 'group') {
+    // Drop sobre un Group
+    // → Beat pasa a ocupar el último lugar en ese Group
+    const targetGroup = dropTarget.data as BeatGroup
+
+    // Remover beat de su group actual (si tiene y es diferente)
+    if (sourceGroup && sourceGroup.id !== targetGroup.id) {
+      const updatedSourceGroup = {
+        ...sourceGroup,
+        beatIds: sourceGroup.beatIds.filter(id => id !== beat.id)
+      }
+      project.value = projectService.updateBeatGroup(
+        project.value,
+        sourceGroup.id,
+        updatedSourceGroup
+      )
+    }
+
+    // Añadir beat al final del target group (si no está ya)
+    if (!targetGroup.beatIds.includes(beat.id)) {
+      const updatedTargetGroup = {
+        ...targetGroup,
+        beatIds: [...targetGroup.beatIds, beat.id]
+      }
+      project.value = projectService.updateBeatGroup(
+        project.value,
+        targetGroup.id,
+        updatedTargetGroup
+      )
+    }
+
+    projectService.saveCurrentProject(project.value)
+  } else if (
+    dropTarget.type === 'lane' ||
+    dropTarget.type === 'block' ||
+    dropTarget.type === null
+  ) {
+    // Drop sobre Lane, Block, o fuera del grid
+    // → Eliminar el Beat de su Group (si tiene)
+    if (sourceGroup) {
+      const updatedGroup = {
+        ...sourceGroup,
+        beatIds: sourceGroup.beatIds.filter(id => id !== beat.id)
+      }
+      project.value = projectService.updateBeatGroup(project.value, sourceGroup.id, updatedGroup)
+      projectService.saveCurrentProject(project.value)
+    }
+  }
 }
 </script>
 
