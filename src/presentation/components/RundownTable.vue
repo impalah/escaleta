@@ -1,5 +1,8 @@
 <template>
-  <div class="rundown-table-wrapper" @mouseleave="clearHoverState">
+  <div
+    class="rundown-table-wrapper"
+    @mouseleave="clearHoverState"
+  >
     <v-data-table
       :headers="headers"
       :items="hierarchicalBeats"
@@ -13,7 +16,10 @@
     >
       <!-- Lane column -->
       <template #[`item.lane`]="{ item }">
-        <div class="grid-cell" @mouseenter="setDropTarget('lane', item.lane)">
+        <div
+          class="grid-cell"
+          @mouseenter="setDropTarget('lane', item.lane)"
+        >
           <v-chip
             v-if="item.lane"
             :color="item.lane.color || '#9E9E9E'"
@@ -31,7 +37,10 @@
 
       <!-- Block column -->
       <template #[`item.block`]="{ item }">
-        <div class="grid-cell" @mouseenter="setDropTarget('block', item.block)">
+        <div
+          class="grid-cell"
+          @mouseenter="setDropTarget('block', item.block)"
+        >
           <v-chip
             v-if="item.block"
             :color="item.block.color || '#757575'"
@@ -67,7 +76,10 @@
           >
             {{ item.group.name }}
           </v-chip>
-          <span v-else @mouseenter="setDropTarget(null, null)">—</span>
+          <span
+            v-else
+            @mouseenter="setDropTarget(null, null)"
+          >—</span>
         </div>
       </template>
 
@@ -79,7 +91,12 @@
           @touchstart="handleDragStart($event, item)"
           @mouseenter="handleBeatCellMouseEnter(item)"
         >
-          <v-icon class="drag-handle-icon" size="small"> mdi-drag-vertical </v-icon>
+          <v-icon
+            class="drag-handle-icon"
+            size="small"
+          >
+            mdi-drag-vertical
+          </v-icon>
         </div>
       </template>
 
@@ -96,7 +113,10 @@
             size="small"
             class="font-weight-medium"
           >
-            <v-icon start :icon="getBeatType(item.typeId)?.icon" />
+            <v-icon
+              start
+              :icon="getBeatType(item.typeId)?.icon"
+            />
             {{ t(`beatTypes.${item.typeId}`) }}
           </v-chip>
         </div>
@@ -203,9 +223,18 @@
       }"
     >
       <div class="drag-ghost-content">
-        <v-icon size="small" class="mr-2"> mdi-drag-vertical </v-icon>
+        <v-icon
+          size="small"
+          class="mr-2"
+        >
+          mdi-drag-vertical
+        </v-icon>
         <span class="font-weight-medium">{{ draggedBeat.title }}</span>
-        <v-chip :color="getBeatType(draggedBeat.typeId)?.color" size="x-small" class="ml-2">
+        <v-chip
+          :color="getBeatType(draggedBeat.typeId)?.color"
+          size="x-small"
+          class="ml-2"
+        >
           {{ t(`beatTypes.${draggedBeat.typeId}`) }}
         </v-chip>
       </div>

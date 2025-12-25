@@ -14,15 +14,25 @@
         @update:model-value="handleUpdate"
       >
         <template #selection="{ item }">
-          <v-chip :color="item.raw.color" variant="flat" size="small">
-            <v-icon start :icon="item.raw.icon" />
+          <v-chip
+            :color="item.raw.color"
+            variant="flat"
+            size="small"
+          >
+            <v-icon
+              start
+              :icon="item.raw.icon"
+            />
             {{ item.title }}
           </v-chip>
         </template>
         <template #item="{ item, props: itemProps }">
           <v-list-item v-bind="itemProps">
             <template #prepend>
-              <v-icon :icon="item.raw.icon" :color="item.raw.color" />
+              <v-icon
+                :icon="item.raw.icon"
+                :color="item.raw.color"
+              />
             </template>
           </v-list-item>
         </template>
@@ -79,7 +89,9 @@
         @update:model-value="handleUpdate"
       />
 
-      <div class="text-caption text-medium-emphasis mt-2">Beat: {{ cellData.beat.title }}</div>
+      <div class="text-caption text-medium-emphasis mt-2">
+        Beat: {{ cellData.beat.title }}
+      </div>
     </v-card-text>
   </v-card>
 </template>

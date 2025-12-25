@@ -350,9 +350,10 @@ export class FountainConverterService {
           // Parse beat metadata
           currentMetadata = {}
           noteContent.split('|').forEach(part => {
-            const [key, value] = part.split(':').map(s => s.trim())
+            const [key, ...valueParts] = part.split(':')
+            const value = valueParts.join(':').trim()
             if (key && value) {
-              currentMetadata[key] = value
+              currentMetadata[key.trim()] = value
             }
           })
 
@@ -457,7 +458,9 @@ export class FountainConverterService {
       // Scene heading (starts with INT, EXT, EST, I/E, or forced with .)
       const sceneMatch =
         trimmed.match(/^\.(.+)$/) ||
-        (trimmed.match(/^(INT|EXT|EST|I\/E|INT\/EXT|INT\.\/EXT\.)\s/i) ? [null, trimmed] : null)
+        (trimmed.match(/^(INT|EXT|EST|I\/E|INT\/EXT|INT\.?\/EXT\.?)[.\s]/i)
+          ? [null, trimmed]
+          : null)
 
       if (sceneMatch) {
         const scene = sceneMatch[1] || sceneMatch[0]
@@ -485,7 +488,7 @@ export class FountainConverterService {
         trimmed === trimmed.toUpperCase() &&
         trimmed.length > 0 &&
         !trimmed.endsWith('TO:') &&
-        !/^(INT|EXT|EST|I\/E)/.test(trimmed)
+        !/^(INT|EXT|EST|I\/E|INT\.|EXT\.)/.test(trimmed)
       ) {
         // This might be a character
         isInDialogue = true
