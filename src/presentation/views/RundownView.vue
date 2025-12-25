@@ -309,7 +309,10 @@ function handleDragMove(beat: BeatWithHierarchy, deltaY: number) {
 
 function handleDragEnd(
   beat: BeatWithHierarchy,
-  dropTarget: { type: 'beat' | 'group' | 'lane' | 'block' | null; data: any }
+  dropTarget: {
+    type: 'beat' | 'group' | 'lane' | 'block' | null
+    data: Beat | BeatGroup | Lane | Block | null
+  }
 ) {
   console.log('Drag ended:', beat.title, 'Drop target:', dropTarget)
 

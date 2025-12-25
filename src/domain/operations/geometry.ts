@@ -167,7 +167,7 @@ export function calculateHierarchyLayout(project: Project): void {
         y: laneContentY
       }
 
-      let blockContentY = laneContentY + LAYOUT_CONSTANTS.BLOCK_HEADER_HEIGHT + LAYOUT_CONSTANTS.GAP
+      const blockContentY = laneContentY + LAYOUT_CONSTANTS.BLOCK_HEADER_HEIGHT + LAYOUT_CONSTANTS.GAP
       let currentGroupX = LAYOUT_CONSTANTS.GROUP_START_X + LAYOUT_CONSTANTS.BLOCK_PADDING
       let maxGroupHeight = 0
 
@@ -247,7 +247,7 @@ export function calculateHierarchyLayout(project: Project): void {
       y: currentLaneY
     }
 
-    let blockContentY = currentLaneY + LAYOUT_CONSTANTS.BLOCK_HEADER_HEIGHT + LAYOUT_CONSTANTS.GAP
+    const blockContentY = currentLaneY + LAYOUT_CONSTANTS.BLOCK_HEADER_HEIGHT + LAYOUT_CONSTANTS.GAP
     let currentGroupX = LAYOUT_CONSTANTS.GROUP_START_X + LAYOUT_CONSTANTS.BLOCK_PADDING
     let maxGroupHeight = 0
 

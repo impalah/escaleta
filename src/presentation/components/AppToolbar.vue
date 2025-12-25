@@ -1,29 +1,54 @@
 <template>
-  <v-app-bar color="primary" density="compact" elevation="2" style="z-index: 1000">
+  <v-app-bar
+    color="primary"
+    density="compact"
+    elevation="2"
+    style="z-index: 1000"
+  >
     <v-toolbar-title>{{ projectName }}</v-toolbar-title>
 
     <v-spacer />
 
     <!-- Toolbar buttons -->
-    <v-btn icon aria-label="New project" @click="$emit('new-project')">
+    <v-btn
+      icon
+      aria-label="New project"
+      @click="$emit('new-project')"
+    >
       <v-icon>mdi-file-plus</v-icon>
-      <v-tooltip activator="parent" location="bottom">
+      <v-tooltip
+        activator="parent"
+        location="bottom"
+      >
         {{ t('toolbar.newProject') }}
       </v-tooltip>
     </v-btn>
 
-    <v-btn icon aria-label="Save project" @click="$emit('save')">
+    <v-btn
+      icon
+      aria-label="Save project"
+      @click="$emit('save')"
+    >
       <v-icon>mdi-content-save</v-icon>
-      <v-tooltip activator="parent" location="bottom">
+      <v-tooltip
+        activator="parent"
+        location="bottom"
+      >
         {{ t('toolbar.save') }}
       </v-tooltip>
     </v-btn>
 
     <v-menu>
       <template #activator="{ props }">
-        <v-btn icon v-bind="props">
+        <v-btn
+          icon
+          v-bind="props"
+        >
           <v-icon>mdi-export</v-icon>
-          <v-tooltip activator="parent" location="bottom">
+          <v-tooltip
+            activator="parent"
+            location="bottom"
+          >
             {{ t('toolbar.export') }}
           </v-tooltip>
         </v-btn>
@@ -38,7 +63,10 @@
       </v-list>
     </v-menu>
 
-    <v-divider vertical class="mx-2" />
+    <v-divider
+      vertical
+      class="mx-2"
+    />
 
     <!-- View Mode Toggle -->
     <v-btn-toggle
@@ -48,53 +76,101 @@
       color="accent"
       class="mr-2"
     >
-      <v-btn value="timeline" size="small" aria-label="Timeline view" :to="{ name: 'timeline' }">
+      <v-btn
+        value="timeline"
+        size="small"
+        aria-label="Timeline view"
+        :to="{ name: 'timeline' }"
+      >
         <v-icon>mdi-timeline</v-icon>
-        <v-tooltip activator="parent" location="bottom">
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
           {{ t('toolbar.timelineView') }}
         </v-tooltip>
       </v-btn>
-      <v-btn value="rundown" size="small" aria-label="Rundown view" :to="{ name: 'rundown' }">
+      <v-btn
+        value="rundown"
+        size="small"
+        aria-label="Rundown view"
+        :to="{ name: 'rundown' }"
+      >
         <v-icon>mdi-view-list</v-icon>
-        <v-tooltip activator="parent" location="bottom">
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
           {{ t('toolbar.rundownView') }}
         </v-tooltip>
       </v-btn>
-      <v-btn value="fountain" size="small" aria-label="Fountain view" :to="{ name: 'fountain' }">
+      <v-btn
+        value="fountain"
+        size="small"
+        aria-label="Fountain view"
+        :to="{ name: 'fountain' }"
+      >
         <v-icon>mdi-fountain</v-icon>
-        <v-tooltip activator="parent" location="bottom">
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
           {{ t('toolbar.fountainView') }}
         </v-tooltip>
       </v-btn>
     </v-btn-toggle>
 
-    <v-divider vertical class="mx-2" />
+    <v-divider
+      vertical
+      class="mx-2"
+    />
 
     <!-- Zoom controls (only shown in timeline view) -->
     <template v-if="showZoomControls">
-      <v-btn icon @click="$emit('zoom-in')">
+      <v-btn
+        icon
+        @click="$emit('zoom-in')"
+      >
         <v-icon>mdi-magnify-plus</v-icon>
-        <v-tooltip activator="parent" location="bottom">
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
           {{ t('toolbar.zoomIn') }}
         </v-tooltip>
       </v-btn>
 
-      <v-btn icon @click="$emit('zoom-out')">
+      <v-btn
+        icon
+        @click="$emit('zoom-out')"
+      >
         <v-icon>mdi-magnify-minus</v-icon>
-        <v-tooltip activator="parent" location="bottom">
+        <v-tooltip
+          activator="parent"
+          location="bottom"
+        >
           {{ t('toolbar.zoomOut') }}
         </v-tooltip>
       </v-btn>
 
-      <v-divider vertical class="mx-2" />
+      <v-divider
+        vertical
+        class="mx-2"
+      />
     </template>
 
     <!-- Language Selector -->
     <v-menu>
       <template #activator="{ props }">
-        <v-btn icon v-bind="props">
+        <v-btn
+          icon
+          v-bind="props"
+        >
           <v-icon>mdi-translate</v-icon>
-          <v-tooltip activator="parent" location="bottom">
+          <v-tooltip
+            activator="parent"
+            location="bottom"
+          >
             {{ t('toolbar.language') }}
           </v-tooltip>
         </v-btn>
@@ -109,7 +185,10 @@
       </v-list>
     </v-menu>
 
-    <v-divider vertical class="mx-2" />
+    <v-divider
+      vertical
+      class="mx-2"
+    />
 
     <v-btn
       v-if="!hideBeatControls"
@@ -119,7 +198,10 @@
       @click="$emit('add-beat')"
     >
       <v-icon>mdi-plus-circle</v-icon>
-      <v-tooltip activator="parent" location="bottom">
+      <v-tooltip
+        activator="parent"
+        location="bottom"
+      >
         {{ t('toolbar.addBeat') }}
       </v-tooltip>
     </v-btn>
@@ -132,7 +214,10 @@
       @click="$emit('create-group')"
     >
       <v-icon>mdi-group</v-icon>
-      <v-tooltip activator="parent" location="bottom">
+      <v-tooltip
+        activator="parent"
+        location="bottom"
+      >
         {{ t('toolbar.createGroup') }}
       </v-tooltip>
     </v-btn>

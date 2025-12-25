@@ -12,7 +12,10 @@
     />
 
     <v-main>
-      <v-container fluid class="fountain-container pa-0">
+      <v-container
+        fluid
+        class="fountain-container pa-0"
+      >
         <v-textarea
           v-model="fountainText"
           class="fountain-editor"

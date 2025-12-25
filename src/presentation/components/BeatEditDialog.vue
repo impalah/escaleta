@@ -5,7 +5,9 @@
     @update:model-value="$emit('update:modelValue', $event)"
   >
     <v-card v-if="beat">
-      <v-card-title class="text-h5"> Editar Beat </v-card-title>
+      <v-card-title class="text-h5">
+        Editar Beat
+      </v-card-title>
 
       <v-card-text>
         <v-text-field
@@ -53,8 +55,20 @@
 
       <v-card-actions>
         <v-spacer />
-        <v-btn color="grey" variant="text" @click="handleCancel"> Cancelar </v-btn>
-        <v-btn color="primary" variant="elevated" @click="handleSave"> Guardar </v-btn>
+        <v-btn
+          color="grey"
+          variant="text"
+          @click="handleCancel"
+        >
+          Cancelar
+        </v-btn>
+        <v-btn
+          color="primary"
+          variant="elevated"
+          @click="handleSave"
+        >
+          Guardar
+        </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>

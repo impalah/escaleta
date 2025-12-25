@@ -113,7 +113,7 @@ watch(
   () => props.cellData,
   newData => {
     if (newData) {
-      const beat = newData.beat as Record<string, any>
+      const beat = newData.beat as Record<string, unknown>
       let value = beat[newData.field]
 
       // Normalize old data: convert string to array for cue and assets

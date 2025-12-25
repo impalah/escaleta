@@ -203,7 +203,7 @@
       }"
     >
       <div class="drag-ghost-content">
-        <v-icon size="small" class="mr-2">mdi-drag-vertical</v-icon>
+        <v-icon size="small" class="mr-2"> mdi-drag-vertical </v-icon>
         <span class="font-weight-medium">{{ draggedBeat.title }}</span>
         <v-chip :color="getBeatType(draggedBeat.typeId)?.color" size="x-small" class="ml-2">
           {{ t(`beatTypes.${draggedBeat.typeId}`) }}
@@ -237,7 +237,10 @@ const emit = defineEmits<{
   'drag-move': [beat: BeatWithHierarchy, deltaY: number]
   'drag-end': [
     beat: BeatWithHierarchy,
-    dropTarget: { type: 'beat' | 'group' | 'lane' | 'block' | null; data: any }
+    dropTarget: {
+      type: 'beat' | 'group' | 'lane' | 'block' | null
+      data: Beat | BeatGroup | Lane | Block | null
+    }
   ]
 }>()
 
@@ -257,7 +260,10 @@ const isDragging = ref(false)
 const dragStartY = ref(0)
 const dragGhostX = ref(0)
 const dragGhostY = ref(0)
-const dropTarget = ref<{ type: 'beat' | 'group' | 'lane' | 'block' | null; data: any }>({
+const dropTarget = ref<{
+  type: 'beat' | 'group' | 'lane' | 'block' | null
+  data: Beat | BeatGroup | Lane | Block | null
+}>({
   type: null,
   data: null
 })
@@ -428,7 +434,10 @@ function handleGroupMouseEnter(group: BeatGroup) {
   }
 }
 
-function setDropTarget(type: 'beat' | 'group' | 'lane' | 'block' | null, data: any) {
+function setDropTarget(
+  type: 'beat' | 'group' | 'lane' | 'block' | null,
+  data: Beat | BeatGroup | Lane | Block | null
+) {
   if (!isDragging.value) return
   dropTarget.value = { type, data }
 }
