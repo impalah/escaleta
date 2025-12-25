@@ -29,30 +29,43 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { setLanguage } from '@/i18n'
 import AppToolbar from '@/presentation/components/AppToolbar.vue'
 import { projectService } from '@/application/ProjectService'
+import { FountainConverterService } from '@/services/FountainConverterService'
 import type { Project } from '@/domain/entities'
 
 const { t, locale } = useI18n()
 
 const project = ref<Project>(projectService.createExampleProject())
 const fountainText = ref('')
+let lastSavedText = '' // Track last saved text to avoid unnecessary parsing
 
 onMounted(() => {
   const loaded = projectService.loadCurrentProject()
   if (loaded) {
     project.value = loaded
     console.log('Loaded project:', project.value.name)
-    // TODO: Convert project data to Fountain format
-    fountainText.value = t('fountainView.emptyPlaceholder')
+    // Convert project to Fountain format
+    fountainText.value = FountainConverterService.projectToFountain(loaded)
+    lastSavedText = fountainText.value
   } else {
     // Create and save example project
     project.value = projectService.createExampleProject()
     projectService.saveCurrentProject(project.value)
-    fountainText.value = t('fountainView.emptyPlaceholder')
+    fountainText.value = FountainConverterService.projectToFountain(project.value)
+    lastSavedText = fountainText.value
+  }
+})
+
+// Auto-save when leaving the view
+onBeforeUnmount(() => {
+  if (fountainText.value !== lastSavedText) {
+    project.value = FountainConverterService.fountainToProject(fountainText.value, project.value)
+    projectService.saveCurrentProject(project.value)
+    console.log('Auto-saved project when leaving Fountain view')
   }
 })
 
@@ -60,13 +73,19 @@ function handleNewProject() {
   if (confirm(t('toolbar.newProjectConfirm'))) {
     project.value = projectService.createExampleProject()
     projectService.saveCurrentProject(project.value)
-    fountainText.value = t('fountainView.emptyPlaceholder')
+    fountainText.value = FountainConverterService.projectToFountain(project.value)
+    lastSavedText = fountainText.value
   }
 }
 
 function handleSave() {
-  // TODO: Convert Fountain text back to project structure
+  // Convert Fountain text back to project structure
+  if (fountainText.value !== lastSavedText) {
+    project.value = FountainConverterService.fountainToProject(fountainText.value, project.value)
+    lastSavedText = fountainText.value
+  }
   projectService.saveCurrentProject(project.value)
+  console.log('Project saved from Fountain format')
 }
 
 function handleExportJSON() {
@@ -74,11 +93,18 @@ function handleExportJSON() {
 }
 
 function handleExportScript() {
-  alert(t('toolbar.exportToScript') + ' - Not implemented yet')
+  // Export as plain Fountain text file
+  const blob = new Blob([fountainText.value], { type: 'text/plain;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `${project.value.name}.fountain`
+  link.click()
+  URL.revokeObjectURL(url)
 }
 
 function handleTextChange() {
-  // TODO: Debounce and auto-save
+  // Auto-save is handled when user clicks save or changes view
   console.log('Fountain text changed')
 }
 

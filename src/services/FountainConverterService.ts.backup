@@ -1,0 +1,512 @@
+/**
+ * Service for converting between Escaleta project structure and Fountain format
+ */
+
+import type { Project, Beat, BeatGroup, Block, Lane } from '@/domain/entities'
+import { calculateHierarchyLayout } from '@/domain/operations/geometry'
+
+export class FountainConverterService {
+  /**
+   * Convert Escaleta project to Fountain screenplay format
+   */
+  static projectToFountain(project: Project): string {
+    const lines: string[] = []
+
+    // Title page (as comment to preserve project metadata)
+    lines.push(`Title: ${project.name}`)
+    if (project.description) {
+      lines.push(`Credit: ${project.description}`)
+    }
+    lines.push('')
+    lines.push('') // Blank line after title page
+
+    // Helper to find beats for a group
+    const getBeatsForGroup = (groupId: string): Beat[] => {
+      const group = project.beatGroups.find(g => g.id === groupId)
+      if (!group) return []
+      return group.beatIds
+        .map(beatId => project.beats.find(b => b.id === beatId))
+        .filter(Boolean) as Beat[]
+    }
+
+    // Helper to find groups for a block
+    const getGroupsForBlock = (blockId: string): BeatGroup[] => {
+      const block = project.blocks.find(b => b.id === blockId)
+      if (!block) return []
+      return block.groupIds
+        .map(groupId => project.beatGroups.find(g => g.id === groupId))
+        .filter(Boolean) as BeatGroup[]
+    }
+
+    // Helper to find blocks for a lane
+    const getBlocksForLane = (laneId: string): Block[] => {
+      const lane = project.lanes.find(l => l.id === laneId)
+      if (!lane) return []
+      return lane.blockIds
+        .map(blockId => project.blocks.find(b => b.id === blockId))
+        .filter(Boolean) as Block[]
+    }
+
+    // Process Lanes → Blocks → Groups → Beats hierarchy
+    project.lanes.forEach(lane => {
+      // Lane as # heading
+      lines.push(`# ${lane.name}`)
+      lines.push(`[[ LANE_ID: ${lane.id} ]]`)
+      lines.push('')
+
+      const blocks = getBlocksForLane(lane.id)
+      blocks.forEach(block => {
+        // Block as ## heading
+        lines.push(`## ${block.name}`)
+        lines.push(`[[ BLOCK_ID: ${block.id} ]]`)
+        lines.push('')
+
+        const groups = getGroupsForBlock(block.id)
+        groups.forEach(group => {
+          // BeatGroup as ### heading
+          lines.push(`### ${group.name}`)
+          lines.push(`[[ GROUP_ID: ${group.id} ]]`)
+          if (group.description) {
+            lines.push(`[[ GROUP_DESC: ${group.description} ]]`)
+          }
+          lines.push('')
+
+          const beats = getBeatsForGroup(group.id)
+          beats.forEach(beat => {
+            this.beatToFountain(beat, lines, project)
+          })
+        })
+      })
+    })
+
+    // Process orphan blocks (without lane)
+    const orphanBlocks = project.blocks.filter(block => {
+      return !project.lanes.some(lane => lane.blockIds.includes(block.id))
+    })
+
+    orphanBlocks.forEach(block => {
+      lines.push(`## ${block.name}`)
+      lines.push(`[[ BLOCK_ID: ${block.id} ]]`)
+      lines.push('')
+
+      const groups = getGroupsForBlock(block.id)
+      groups.forEach(group => {
+        lines.push(`### ${group.name}`)
+        lines.push(`[[ GROUP_ID: ${group.id} ]]`)
+        lines.push('')
+
+        const beats = getBeatsForGroup(group.id)
+        beats.forEach(beat => {
+          this.beatToFountain(beat, lines, project)
+        })
+      })
+    })
+
+    // Process orphan groups (without block)
+    const orphanGroups = project.beatGroups.filter(group => {
+      return !project.blocks.some(block => block.groupIds.includes(group.id))
+    })
+
+    orphanGroups.forEach(group => {
+      lines.push(`### ${group.name}`)
+      lines.push(`[[ GROUP_ID: ${group.id} ]]`)
+      lines.push('')
+
+      const beats = getBeatsForGroup(group.id)
+      beats.forEach(beat => {
+        this.beatToFountain(beat, lines, project)
+      })
+    })
+
+    // Process orphan beats (without group)
+    const orphanBeats = project.beats.filter(beat => {
+      return !project.beatGroups.some(group => group.beatIds.includes(beat.id))
+    })
+
+    if (orphanBeats.length > 0) {
+      lines.push('### Orphan Beats')
+      lines.push('')
+      orphanBeats.forEach(beat => {
+        this.beatToFountain(beat, lines, project)
+      })
+    }
+
+    return lines.join('\n')
+  }
+
+  /**
+   * Convert a single Beat to Fountain lines
+   */
+  private static beatToFountain(beat: Beat, lines: string[], _project: Project): void {
+    // Metadata as hidden notes
+    const metadata: string[] = []
+    metadata.push(`BEAT_ID: ${beat.id}`)
+    metadata.push(`TYPE: ${beat.typeId}`)
+    if (beat.title) {
+      metadata.push(`TITLE: ${beat.title}`)
+    }
+    if (beat.eventStartTime) {
+      metadata.push(`START: ${beat.eventStartTime}`)
+    }
+    if (beat.eventDuration) {
+      metadata.push(`DURATION: ${beat.eventDuration}`)
+    }
+    if (beat.assets && beat.assets.length > 0) {
+      metadata.push(`ASSETS: ${beat.assets.join(', ')}`)
+    }
+
+    lines.push(`[[ ${metadata.join(' | ')} ]]`)
+
+    // Cues as notes
+    if (beat.cue && beat.cue.length > 0) {
+      lines.push(`[[ CUE: ${beat.cue.join(', ')} ]]`)
+    }
+
+    // Scene heading (if exists)
+    if (beat.scene) {
+      // Force scene heading with . if it doesn't start with INT/EXT
+      const sceneUpper = beat.scene.trim().toUpperCase()
+      if (
+        sceneUpper.startsWith('INT') ||
+        sceneUpper.startsWith('EXT') ||
+        sceneUpper.startsWith('EST') ||
+        sceneUpper.startsWith('I/E')
+      ) {
+        lines.push(beat.scene.trim())
+      } else {
+        lines.push(`.${beat.scene.trim()}`)
+      }
+      lines.push('')
+    }
+
+    // Character + Dialogue OR Action
+    if (beat.character && beat.description) {
+      // Character (UPPERCASE)
+      lines.push(beat.character.toUpperCase())
+      // Dialogue
+      lines.push(beat.description.trim())
+      lines.push('')
+    } else if (beat.description) {
+      // Action (plain text)
+      lines.push(beat.description.trim())
+      lines.push('')
+    }
+  }
+
+  /**
+   * Parse Fountain text back to Escaleta project structure
+   * This is a basic implementation - can be enhanced with full Fountain parser
+   */
+  static fountainToProject(fountainText: string, baseProject: Project): Project {
+    const lines = fountainText.split('\n')
+
+    // Debug: Show the fountain text being parsed
+    console.log('=== FOUNTAIN TEXT TO PARSE ===')
+    console.log(fountainText)
+    console.log('=== END FOUNTAIN TEXT ===')
+    console.log('')
+
+    const newBeats: Beat[] = []
+    const newGroups: BeatGroup[] = []
+    const newBlocks: Block[] = []
+    const newLanes: Lane[] = []
+
+    let currentLane: Lane | null = null
+    let currentBlock: Block | null = null
+    let currentGroup: BeatGroup | null = null
+    let currentBeat: Beat | null = null
+    let currentMetadata: Record<string, string> = {}
+    let currentCues: string[] = []
+    let isInDialogue = false
+
+    console.log('=== FOUNTAIN PARSING STARTED ===')
+    console.log(`Total lines to parse: ${lines.length}`)
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i]
+      const trimmed = line.trim()
+
+      // Skip empty lines (they serve as separators)
+      if (!trimmed) {
+        // Empty line ends current beat
+        if (currentBeat) {
+          console.log(`[Line ${i}] EMPTY LINE - Finalizing beat:`, {
+            beatId: currentBeat.id,
+            title: currentBeat.title,
+            scene: currentBeat.scene,
+            character: currentBeat.character,
+            descriptionLength: currentBeat.description?.length || 0,
+            currentGroupName: currentGroup?.name || 'NO GROUP'
+          })
+          // Add beat to current group before finalizing
+          if (currentGroup && !currentGroup.beatIds.includes(currentBeat.id)) {
+            currentGroup.beatIds.push(currentBeat.id)
+            console.log(`  -> Beat added to group "${currentGroup.name}"`)
+          } else if (!currentGroup) {
+            console.log(`  -> WARNING: Beat finalized WITHOUT GROUP`)
+          }
+          newBeats.push(currentBeat)
+          currentBeat = null
+          currentMetadata = {}
+          currentCues = []
+          isInDialogue = false
+        }
+        continue
+      }
+
+      // Skip title page metadata (Title:, Credit:, etc.)
+      if (trimmed.match(/^(Title|Credit|Author|Source|Draft date|Contact):/i)) {
+        continue
+      }
+
+      // Parse notes [[ ... ]]
+      const noteMatch = trimmed.match(/^\[\[\s*(.+?)\s*\]\]$/)
+      if (noteMatch) {
+        const noteContent = noteMatch[1]
+
+        // Parse metadata
+        if (noteContent.includes('LANE_ID:')) {
+          const idMatch = noteContent.match(/LANE_ID:\s*(\S+)/)
+          if (idMatch && currentLane) {
+            currentLane.id = idMatch[1]
+          }
+        } else if (noteContent.includes('BLOCK_ID:')) {
+          const idMatch = noteContent.match(/BLOCK_ID:\s*(\S+)/)
+          if (idMatch && currentBlock) {
+            currentBlock.id = idMatch[1]
+          }
+        } else if (noteContent.includes('GROUP_ID:')) {
+          const idMatch = noteContent.match(/GROUP_ID:\s*(\S+)/)
+          if (idMatch && currentGroup) {
+            currentGroup.id = idMatch[1]
+          }
+        } else if (noteContent.includes('GROUP_DESC:')) {
+          const descMatch = noteContent.match(/GROUP_DESC:\s*(.+)/)
+          if (descMatch && currentGroup) {
+            currentGroup.description = descMatch[1]
+          }
+        } else if (noteContent.includes('BEAT_ID:')) {
+          // Parse beat metadata
+          noteContent.split('|').forEach(part => {
+            const [key, value] = part.split(':').map(s => s.trim())
+            if (key && value) {
+              currentMetadata[key] = value
+            }
+          })
+        } else if (noteContent.startsWith('CUE:')) {
+          const cueText = noteContent.substring(4).trim()
+          currentCues = cueText.split(',').map(c => c.trim())
+        }
+        continue
+      }
+
+      // Parse sections
+      if (trimmed.startsWith('#')) {
+        // Finish current beat if exists
+        if (currentBeat) {
+          // Add beat to current group before finalizing
+          if (currentGroup && !currentGroup.beatIds.includes(currentBeat.id)) {
+            currentGroup.beatIds.push(currentBeat.id)
+          }
+          newBeats.push(currentBeat)
+          currentBeat = null
+          currentMetadata = {}
+          currentCues = []
+          isInDialogue = false
+        }
+
+        const level = trimmed.match(/^#+/)?.[0].length || 0
+        const name = trimmed.replace(/^#+\s*/, '')
+
+        if (level === 1) {
+          // Lane
+          currentLane = {
+            id: this.generateId('lane'),
+            name,
+            blockIds: [],
+            position: { x: 0, y: newLanes.length * 100 },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          newLanes.push(currentLane)
+          currentBlock = null
+          currentGroup = null
+        } else if (level === 2) {
+          // Block
+          currentBlock = {
+            id: this.generateId('block'),
+            name,
+            groupIds: [],
+            position: { x: 0, y: 0 },
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          newBlocks.push(currentBlock)
+          if (currentLane) {
+            currentLane.blockIds.push(currentBlock.id)
+          }
+          currentGroup = null
+        } else if (level === 3) {
+          // BeatGroup
+          console.log(`[Line ${i}] ### Found BeatGroup: "${name}"`)
+          currentGroup = {
+            id: this.generateId('group'),
+            name,
+            beatIds: [],
+            position: { x: 0, y: 0 },
+            collapsed: false,
+            order: newGroups.length,
+            createdAt: new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }
+          newGroups.push(currentGroup)
+          if (currentBlock) {
+            currentBlock.groupIds.push(currentGroup.id)
+          }
+        }
+        continue
+      }
+
+      // Scene heading (starts with INT, EXT, EST, I/E, or forced with .)
+      const sceneMatch =
+        trimmed.match(/^\.(.+)$/) ||
+        (trimmed.match(/^(INT|EXT|EST|I\/E|INT\/EXT|INT\.\/EXT\.)\s/i) ? [null, trimmed] : null)
+
+      if (sceneMatch) {
+        // Finish previous beat
+        ifconsole.log(`[Line ${i}] SCENE HEADING - Finalizing previous beat:`, currentBeat.id)
+          // Add beat to current group before finalizing
+          if (currentGroup && !currentGroup.beatIds.includes(currentBeat.id)) {
+            currentGroup.beatIds.push(currentBeat.id)
+          }
+          newBeats.push(currentBeat)
+          currentBeat = null
+          currentMetadata = {}
+          currentCues = []
+          isInDialogue = false
+        }
+
+        const scene = sceneMatch[1] || sceneMatch[0]
+        currentBeat = this.createBeat(currentMetadata)
+        currentBeat.scene = scene
+        console.log(`[Line ${i}] SCENE HEADING - Created new beat with scene: "${scene}", ID: ${currentBeat.id}`)
+        if (currentCues.length > 0) {
+          currentBeat.cue = currentCues
+        }
+        continue
+      }
+
+      // Character (all UPPERCASE, not ending in TO:)
+      if (
+        trimmed === trimmed.toUpperCase() &&
+        trimmed.length > 0 &&
+        !trimmed.endsWith('TO:') &&
+        !/^(INT|EXT|EST|I\/E)/.test(trimmed)
+      ) {
+        // This might be a character
+        isInDialogue = true
+
+        if (!currentBeat) {
+          currentBeat = this.createBeat(currentMetadata)
+          console.log(`[Line ${i}] CHARACTER - Created new beat for character: "${trimmed}", ID: ${currentBeat.id}`)
+          if (currentCues.length > 0) {
+            currentBeat.cue = currentCues
+          }
+        } else {
+          console.log(`[Line ${i}] CHARACTER - Adding to existing beat: "${trimmed}"`)
+        }
+        currentBeat.character = trimmed
+        continue
+      }
+
+      // Dialogue or Action
+      if (isInDialogue && currentBeat && currentBeat.character) {
+        // Dialogue line
+        console.log(`[Line ${i}] DIALOGUE - Adding to beat ${currentBeat.id}: "${trimmed.substring(0, 30)}..."`)
+        if (currentBeat.description) {
+          currentBeat.description += '\n' + trimmed
+        } else {
+          currentBeat.description = trimmed
+        }
+      } else {
+        // Action
+        if (!currentBeat) {
+          currentBeat = this.createBeat(currentMetadata)
+          console.log(`[Line ${i}] ACTION - Created new beat for action, ID: ${currentBeat.id}`)
+          if (currentCues.length > 0) {
+            currentBeat.cue = currentCues
+          }
+        } else {
+          console.log(`[Line ${i}] ACTION - Adding to existing beat ${currentBeat.id}: "${trimmed.substring(0, 30)}..."`)
+        }
+        if (currentBeat.description) {
+          currentBeat.description += '\n' + trimmed
+        } else {
+          currentBeat.description = trimmed
+        }
+      }
+    }
+
+    // Add last beat
+    if (currentBeat) {
+      newBeats.push(currentBeat)
+      if (currentGroup && !currentGroup.beatIds.includes(currentBeat.id)) {
+        currentGroup.beatIds.push(currentBeat.id)
+      }
+    }
+
+    const updatedProject = {
+      ...baseProject,
+      beats: newBeats,
+      beatGroups: newGroups,
+      blocks: newBlocks,
+      lanes: newLanes,
+      updatedAt: new Date().toISOString()
+    }
+    
+    // Debug: Log beat counts
+    console.log('=== FOUNTAIN PARSING DEBUG ===')
+    console.log(`Total beats parsed: ${newBeats.length}`)
+    console.log(`Total groups parsed: ${newGroups.length}`)
+    newGroups.forEach((group, idx) => {
+      console.log(`  Group ${idx + 1} "${group.name}": ${group.beatIds.length} beats`)
+    })
+    const orphanBeats = newBeats.filter(beat => {
+      return !newGroups.some(group => group.beatIds.includes(beat.id))
+    })
+    console.log(`Orphan beats (not in any group): ${orphanBeats.length}`)
+    if (orphanBeats.length > 0) {
+      orphanBeats.forEach(beat => {
+        console.log(`  - Orphan beat ID: ${beat.id}, title: "${beat.title}", scene: "${beat.scene}", character: "${beat.character}", description: "${beat.description?.substring(0, 50)}..."`)
+      })
+    }
+    console.log('==============================')
+    
+    // Calculate automatic layout based on hierarchy
+    calculateHierarchyLayout(updatedProject)
+    
+    return updatedProject
+  }
+
+  private static createBeat(metadata: Record<string, string>): Beat {
+    const now = new Date().toISOString()
+    return {
+      id: metadata.BEAT_ID || this.generateId('beat'),
+      title: metadata.TITLE || '',
+      description: '',
+      typeId: metadata.TYPE || 'news',
+      order: 0,
+      position: { x: 0, y: 0 },
+      links: [],
+      eventDuration: metadata.DURATION,
+      eventStartTime: metadata.START,
+      assets: metadata.ASSETS ? metadata.ASSETS.split(',').map(a => a.trim()) : undefined,
+      createdAt: now,
+      updatedAt: now
+    }
+  }
+
+  private static generateId(prefix: string): string {
+    return `${prefix}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  }
+}
