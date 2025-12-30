@@ -4,7 +4,15 @@
     "save": "Guardar",
     "delete": "Eliminar",
     "edit": "Editar",
-    "none": "Ninguno"
+    "none": "Ninguno",
+    "selectColor": "Seleccionar Color",
+    "fields": {
+      "id": "ID",
+      "createdAt": "Creado el",
+      "updatedAt": "Actualizado el",
+      "position": "Posición",
+      "order": "Orden"
+    }
   },
   "app": {
     "title": "Escaleta",
@@ -75,6 +83,55 @@
     "script": "Guion",
     "createdAt": "Fecha de Creación",
     "updatedAt": "Última Actualización"
+  },
+  "beat": {
+    "fields": {
+      "title": "Título",
+      "type": "Tipo",
+      "script": "Guión",
+      "scriptHelp": "Diálogo, narración o descripción de acción",
+      "scriptPlaceholder": "Introduce el contenido del guión...",
+      "order": "Orden",
+      "prevBeat": "Beat Anterior",
+      "nextBeat": "Beat Siguiente",
+      "links": "Enlaces",
+      "position": "Posición",
+      "eventStartTime": "Hora de Inicio",
+      "eventDuration": "Duración",
+      "scene": "Escena",
+      "scenePlaceholder": "INT. ESTUDIO - DÍA",
+      "character": "Personaje",
+      "cue": "Señales Técnicas",
+      "cuePlaceholder": "VTR START, CÁMARA 2",
+      "assets": "Recursos"
+    },
+    "groups": {
+      "timing": "Timing",
+      "production": "Producción"
+    }
+  },
+  "group": {
+    "fields": {
+      "name": "Nombre del Grupo",
+      "description": "Descripción",
+      "color": "Color",
+      "beatIds": "IDs de Beats",
+      "collapsed": "Colapsado"
+    }
+  },
+  "block": {
+    "fields": {
+      "name": "Nombre del Bloque",
+      "color": "Color",
+      "groupIds": "IDs de Grupos"
+    }
+  },
+  "lane": {
+    "fields": {
+      "name": "Nombre del Carril",
+      "color": "Color",
+      "blockIds": "IDs de Bloques"
+    }
   },
   "beatCard": {
     "delete": "Eliminar Beat",

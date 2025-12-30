@@ -4,7 +4,15 @@
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
-    "none": "None"
+    "none": "None",
+    "selectColor": "Select Color",
+    "fields": {
+      "id": "ID",
+      "createdAt": "Created At",
+      "updatedAt": "Updated At",
+      "position": "Position",
+      "order": "Order"
+    }
   },
   "app": {
     "title": "Escaleta",
@@ -76,6 +84,55 @@
     "script": "Script",
     "createdAt": "Created At",
     "updatedAt": "Last Updated"
+  },
+  "beat": {
+    "fields": {
+      "title": "Title",
+      "type": "Type",
+      "script": "Script",
+      "scriptHelp": "Dialogue, narration, or action description",
+      "scriptPlaceholder": "Enter script content...",
+      "order": "Order",
+      "prevBeat": "Previous Beat",
+      "nextBeat": "Next Beat",
+      "links": "Links",
+      "position": "Position",
+      "eventStartTime": "Start Time",
+      "eventDuration": "Duration",
+      "scene": "Scene",
+      "scenePlaceholder": "INT. STUDIO - DAY",
+      "character": "Character",
+      "cue": "Technical Cues",
+      "cuePlaceholder": "VTR START, CAMERA 2",
+      "assets": "Assets"
+    },
+    "groups": {
+      "timing": "Timing",
+      "production": "Production"
+    }
+  },
+  "group": {
+    "fields": {
+      "name": "Group Name",
+      "description": "Description",
+      "color": "Color",
+      "beatIds": "Beat IDs",
+      "collapsed": "Collapsed"
+    }
+  },
+  "block": {
+    "fields": {
+      "name": "Block Name",
+      "color": "Color",
+      "groupIds": "Group IDs"
+    }
+  },
+  "lane": {
+    "fields": {
+      "name": "Lane Name",
+      "color": "Color",
+      "blockIds": "Block IDs"
+    }
   },
   "beatCard": {
     "delete": "Delete Beat",

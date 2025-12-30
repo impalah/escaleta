@@ -301,15 +301,17 @@ export class FountainConverterService {
           if (blockIdMatch && currentGroup) {
             const blockId = blockIdMatch[1]
             const targetBlock = newBlocks.find(b => b.id === blockId)
-            if (targetBlock) {
+            if (targetBlock && currentGroup) {
               // Remove group from any other block first
               newBlocks.forEach(b => {
-                const idx = b.groupIds.indexOf(currentGroup.id)
-                if (idx !== -1 && b.id !== blockId) {
-                  b.groupIds.splice(idx, 1)
-                  console.log(
-                    `[Line ${i}] Removed group "${currentGroup.name}" from block "${b.name}"`
-                  )
+                if (currentGroup) {
+                  const idx = b.groupIds.indexOf(currentGroup.id)
+                  if (idx !== -1 && b.id !== blockId) {
+                    b.groupIds.splice(idx, 1)
+                    console.log(
+                      `[Line ${i}] Removed group "${currentGroup.name}" from block "${b.name}"`
+                    )
+                  }
                 }
               })
               // Add to target block
@@ -463,18 +465,18 @@ export class FountainConverterService {
           : null)
 
       if (sceneMatch) {
-        const scene = sceneMatch[1] || sceneMatch[0]
+        const scene = sceneMatch[1] || sceneMatch[0] || ''
 
         // If beat already exists (from metadata), just add scene
         if (currentBeat) {
-          currentBeat.scene = scene
+          currentBeat.scene = scene || undefined
           console.log(
             `[Line ${i}] Added scene to existing beat: "${scene}" (ID: ${currentBeat.id})`
           )
         } else {
           // Create new beat from scene (for Fountain without metadata)
           currentBeat = this.createBeat(currentMetadata)
-          currentBeat.scene = scene
+          currentBeat.scene = scene || undefined
           console.log(`[Line ${i}] Created beat from scene: "${scene}" (ID: ${currentBeat.id})`)
           if (currentCues.length > 0) {
             currentBeat.cue = currentCues

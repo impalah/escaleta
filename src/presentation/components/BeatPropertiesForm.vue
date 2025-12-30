@@ -4,129 +4,32 @@
       {{ t('propertiesPanel.beat') }}
     </h3>
 
-    <v-text-field
-      v-model="localBeat.title"
-      :label="t('beatProperties.title')"
-      variant="outlined"
-      density="comfortable"
-      class="mb-4"
-      @input="handleUpdate"
-    />
-
-    <v-select
-      v-model="localBeat.typeId"
-      :items="beatTypeItems"
-      :label="t('beatProperties.type')"
-      variant="outlined"
-      density="comfortable"
-      class="mb-4"
-      @update:model-value="handleUpdate"
-    >
-      <template #prepend-inner>
-        <v-icon :color="getSelectedBeatType()?.color">
-          {{ getSelectedBeatType()?.icon }}
-        </v-icon>
+    <template v-for="field in beatFields" :key="field.key">
+      <!-- Group divider and header -->
+      <template v-if="field.group && isFirstInGroup(field)">
+        <v-divider class="my-4" />
+        <div class="text-caption text-medium-emphasis mb-2">
+          {{ t(`beat.groups.${field.group}`) }}
+        </div>
       </template>
-    </v-select>
 
-    <v-text-field
-      v-model.number="localBeat.order"
-      :label="t('beatProperties.order')"
-      type="number"
-      variant="outlined"
-      density="comfortable"
-      class="mb-4"
-      @input="handleUpdate"
-    />
-
-    <v-text-field
-      v-model="localBeat.eventDuration"
-      :label="t('beatProperties.eventDuration')"
-      variant="outlined"
-      density="comfortable"
-      placeholder="mm:ss.ms"
-      :hint="t('beatProperties.eventDurationHint')"
-      persistent-hint
-      class="mb-4"
-      @input="handleUpdate"
-    />
-
-    <v-text-field
-      v-model="localBeat.eventStartTime"
-      :label="t('beatProperties.eventStartTime')"
-      variant="outlined"
-      density="comfortable"
-      placeholder="hh:mm:ss.ms"
-      :hint="t('beatProperties.eventStartTimeHint')"
-      persistent-hint
-      class="mb-4"
-      @input="handleUpdate"
-    />
-
-    <v-text-field
-      v-model="localBeat.scene"
-      :label="t('beatProperties.scene')"
-      variant="outlined"
-      density="comfortable"
-      :placeholder="t('beatProperties.sceneHint')"
-      persistent-hint
-      class="mb-4"
-      @input="handleUpdate"
-    />
-
-    <v-text-field
-      v-model="localBeat.character"
-      :label="t('beatProperties.character')"
-      variant="outlined"
-      density="comfortable"
-      :placeholder="t('beatProperties.characterHint')"
-      class="mb-4"
-      @input="handleUpdate"
-    />
-
-    <v-combobox
-      v-model="localBeat.cue"
-      :label="t('beatProperties.cue')"
-      variant="outlined"
-      density="comfortable"
-      multiple
-      chips
-      closable-chips
-      :hint="t('beatProperties.cueHint')"
-      persistent-hint
-      class="mb-4"
-      @update:model-value="handleUpdate"
-    />
-
-    <v-combobox
-      v-model="localBeat.assets"
-      :label="t('beatProperties.assets')"
-      variant="outlined"
-      density="comfortable"
-      multiple
-      chips
-      closable-chips
-      :hint="t('beatProperties.assetsHint')"
-      persistent-hint
-      class="mb-4"
-      @update:model-value="handleUpdate"
-    />
-
-    <v-textarea
-      v-model="localBeat.description"
-      :label="t('beatProperties.script')"
-      variant="outlined"
-      rows="6"
-      density="comfortable"
-      @input="handleUpdate"
-    />
+      <!-- Render field using FieldRenderer -->
+      <FieldRenderer
+        :metadata="field"
+        :model-value="getFieldValue(field.key)"
+        :select-options="field.key === 'typeId' ? beatTypeOptions : undefined"
+        @update:model-value="updateField(field.key, $event)"
+      />
+    </template>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { Beat, BeatType } from '@/domain/entities'
+import { getEditableFields, isFirstInGroup as checkFirstInGroup } from '@/domain/fieldMetadata'
+import FieldRenderer from './FieldRenderer.vue'
 
 const { t } = useI18n()
 
@@ -139,39 +42,32 @@ const emit = defineEmits<{
   update: [beat: Beat]
 }>()
 
-const localBeat = ref<Beat>({
-  ...props.beat,
-  assets: props.beat.assets || [] // Ensure assets is always an array
-})
+// Get editable fields for beat (canvas context)
+const beatFields = computed(() => getEditableFields('beat', 'canvas'))
 
-// Watch for external changes to beat
-watch(
-  () => props.beat,
-  newBeat => {
-    localBeat.value = {
-      ...newBeat,
-      assets: newBeat.assets || [] // Ensure assets is always an array
-    }
-  },
-  { deep: true }
-)
-
-const beatTypeItems = computed(() =>
+// Convert beatTypes to select options
+const beatTypeOptions = computed(() =>
   props.beatTypes.map(type => ({
     value: type.id,
-    title: t(`beatTypes.${type.id}`)
+    label: t(`beatTypes.${type.id}`)
   }))
 )
 
-function getSelectedBeatType(): BeatType | undefined {
-  return props.beatTypes.find(t => t.id === localBeat.value.typeId)
+function getFieldValue(key: string): unknown {
+  return props.beat[key as keyof Beat]
 }
 
-function handleUpdate() {
-  // Update timestamp
-  localBeat.value.updatedAt = new Date().toISOString()
-  // Emit updated beat
-  emit('update', { ...localBeat.value })
+function updateField(key: string, value: unknown) {
+  const updatedBeat = {
+    ...props.beat,
+    [key]: value,
+    updatedAt: new Date().toISOString()
+  }
+  emit('update', updatedBeat)
+}
+
+function isFirstInGroup(field: (typeof beatFields.value)[0]): boolean {
+  return checkFirstInGroup(field, beatFields.value)
 }
 </script>
 

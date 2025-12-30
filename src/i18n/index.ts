@@ -11,15 +11,15 @@ function getInitialLocale(): string {
   if (savedLanguage) {
     return savedLanguage
   }
-  
+
   // Get browser language
   const browserLang = navigator.language || (navigator as { userLanguage?: string }).userLanguage
-  
+
   // Map browser language to our supported locales
-  if (browserLang.startsWith('es')) {
+  if (browserLang && browserLang.startsWith('es')) {
     return 'es-ES'
   }
-  
+
   // Default to English
   return 'en-US'
 }
